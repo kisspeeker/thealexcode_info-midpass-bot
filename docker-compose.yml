@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  info-midpass-bot:
+    build: .
+    image: thealexcode/info-midpass-bot
+    restart: always
+    ports:
+      - 3002:80
+    env_file: ./.env
