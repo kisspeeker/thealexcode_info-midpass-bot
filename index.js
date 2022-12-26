@@ -1,96 +1,87 @@
 import fs from 'fs';
-import { Telegraf } from 'telegraf';
+import { resolve } from 'path';
+import { Telegraf, Markup } from 'telegraf';
 
 import {
   BOT_TOKEN,
   MESSAGES,
-  LOGS_PATH,
-  ADMIN_CHAT_ID,
-  LOGS_TYPES,
-  ERRORS,
-  API_ROUTE_LOGS,
-  API_KEY
+  USERS
 } from './src/constants.js';
-import axios from 'axios';
+
+import User from './src/user.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
-const axiosInstance = axios.create({
-  headers: {
-    Accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`
-  },
-});
+const Statuses = {
+  AWAIT_CODE_INPUT: 'AWAIT_CODE_INPUT'
+}
 
-bot.start(async (ctx) => {
-  try {
-    const { id, username } = ctx?.message?.from;
+let status = null;
 
-    await ctx.reply(MESSAGES.start);
-    // await sendStartMessageToAdmin(ctx);
-    // await logMessage({
-    //   type: LOGS_TYPES.successStart,
-    //   chatId: id,
-    //   userName: username,
-    // });
-  } catch(e) {
-    console.error(e);
-    throw new Error(`${ERRORS.start}: ${e}`);
+let user = null;
+
+bot.start((ctx) => {
+  const currentUser = USERS.find((user) => user.chatId === ctx.from.id);
+
+  if (currentUser) {
+    user = new User(currentUser);
+    ctx.reply(MESSAGES.startForUser, Markup.keyboard(
+      [
+        [
+          Markup.button.callback('Обновить статусы', 'update'),
+        ],
+        [
+          Markup.button.callback('Перестать отслеживать', 'stop'),
+        ]
+      ]
+    ));
+  } else {
+    ctx.reply(MESSAGES.start);
+    status = Statuses.AWAIT_CODE_INPUT;
   }
 });
 
-// bot.command('logs', async (ctx) => {
-//   try {
-//     const { id, username } = ctx?.message?.from;
+bot.command('test', (ctx) => {
+  ctx.reply('test command handler', Markup.keyboard(
+    [
+      Markup.button.callback('add code', 'add code'),
+      Markup.button.callback('add code 2', 'add code', true),
+    ]
+  ))
+})
 
-//     if (ADMIN_CHAT_ID && String(id) === ADMIN_CHAT_ID) {
-//       const logsDocument = await requestLogsAndGenerateFile();
+bot.action('add code', (ctx) => {
+  status = Statuses.AWAIT_CODE_INPUT
+});
 
-//       await ctx.replyWithDocument({
-//         source: logsDocument,
-//         filename: LOGS_PATH.split('/').pop(),
-//       })
+bot.on('text', async (ctx) => {
+  if (status === Statuses.AWAIT_CODE_INPUT) {
+    status = null;
 
-//       fs.access(LOGS_PATH, async (err) => {
-//         if (err) {
-//           console.error(err);
-//           return;
-//         }
-//         logsDocument.destroy();
-//         await fs.unlink(LOGS_PATH, (e) => console.error(e));
-//       });
+    const text = ctx.message.text;
 
-//       await logMessage({
-//         type: LOGS_TYPES.logsDownload,
-//         chatId: id,
-//         userName: username,
-//       });
-//     }
-//   } catch(e) {
-//     console.error(e);
-//     throw new Error(`${ERRORS.logsSend}: ${e}`);
-//   }
-// })
+    if (!user) {
+      user = new User(ctx.from);
+    }
 
-
-// bot.on('text', async (ctx) => {
-//   try {
-//     const { id, username } = ctx?.message?.from;
-//     const message = ctx?.message?.text?.replace('/', '');
-//     const imagePath = await requestImageFromGenerator(message);
-
-//     await ctx.replyWithPhoto(imagePath);
-
-//     await logMessage({
-//       type: LOGS_TYPES.successRequestImage,
-//       chatId: id,
-//       userName: username,
-//       message: message,
-//     });
-//   } catch(e) {
-//     throw new Error(`${ERRORS.messageHandler}: ${e}`);
-//   }
-// });
+    const newCode = await User.requestCode(text)
+    user.updateCode(newCode)
+    ctx.replyWithPhoto({
+      source: fs.createReadStream(resolve(`./static/${newCode.internalStatus.percent}.png`))
+    }, {
+      caption: `
+<b>Процент:</b> <b>${newCode.internalStatus.percent}</b>
+<b>Документы поданы:</b> ${newCode.receptionDate}
+<b>Статус:</b> ${newCode.passportStatus.name}
+<b>Внутренний статус:</b> ${newCode.internalStatus.name}
+      `,
+      parse_mode: 'HTML'
+    })
+  } else {
+    console.warn('on text default');
+    ctx.reply('on text default')
+  }
+});
 
 bot.catch(async (err, ctx) => {
   console.error(err);

@@ -8,15 +8,11 @@ export default class Code {
       name: passportStatus?.name,
       description: passportStatus?.description,
       color: passportStatus?.color,
-      subscription: passportStatus?.subscription
+      subscription: passportStatus?.subscription,
     };
     this.internalStatus = {
       name: internalStatus?.name,
-      percent: internalStatus?.percent
-    },
-  }
-
-  get hasCodes() {
-    this.codes.length
+      percent: internalStatus?.percent,
+    };
   }
 }
