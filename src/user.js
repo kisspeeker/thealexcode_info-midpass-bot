@@ -1,15 +1,6 @@
-import axios from 'axios'
-
-import {
-  API_ROUTE_MIDPASS,
-} from './constants.js';
+import { API_ROUTE_MIDPASS } from './constants.js';
+import { axiosInstance } from './api.js'
 import Code from './code.js';
-
-export const axiosInstance = axios.create({
-  headers: {
-    Accept: 'application/json',
-  },
-});
 
 export default class User {
   constructor({ 
@@ -17,28 +8,24 @@ export default class User {
     first_name,
     last_name,
     username, 
-    updateTime, 
-    isStarted, 
     codes,
   }) {
     this.id = id;
     this.firstName = first_name;
     this.lastName = last_name;
     this.userName = username;
-    this.updateTime = updateTime;
-    this.isStarted = !!isStarted;
     this.codes = Array.isArray(codes) ? codes : [];
   }
 
   get hasCodes() {
-    return Array.isArray(this.codes) && !!this.codes.length
+    return !!this.codes.length
   }
 
   static async requestCode(uid = '') {
     try {
       return new Code((await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data)
     } catch(e) {
-      throw e;
+      throw 'Не удалось получить информацию о заявлении. Проверь правильность номера заявления или попробуй позже.';
     }
   }
 
@@ -51,8 +38,6 @@ export default class User {
       } else {
         this.codes.push(currentCode)
       }
-
-      this.updateTime = Date.now();
     }
   }
 }

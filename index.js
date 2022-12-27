@@ -11,79 +11,75 @@ import {
 import User from './src/user.js';
 
 const bot = new Telegraf(BOT_TOKEN);
-
 const Statuses = {
   AWAIT_CODE_INPUT: 'AWAIT_CODE_INPUT'
 }
-
 let status = null;
-
 let user = null;
+const keyboard = Markup.keyboard([
+  [
+    Markup.button.callback('Главное меню', 'clear status', !!status),
+  ]
+])
 
 bot.start((ctx) => {
   const currentUser = USERS.find((user) => user.chatId === ctx.from.id);
 
   if (currentUser) {
     user = new User(currentUser);
-    ctx.reply(MESSAGES.startForUser, Markup.keyboard(
-      [
-        [
-          Markup.button.callback('Обновить статусы', 'update'),
-        ],
-        [
-          Markup.button.callback('Перестать отслеживать', 'stop'),
-        ]
-      ]
-    ));
+    ctx.reply(MESSAGES.startForUser, keyboard);
   } else {
     ctx.reply(MESSAGES.start);
     status = Statuses.AWAIT_CODE_INPUT;
   }
 });
 
-bot.command('test', (ctx) => {
-  ctx.reply('test command handler', Markup.keyboard(
-    [
-      Markup.button.callback('add code', 'add code'),
-      Markup.button.callback('add code 2', 'add code', true),
-    ]
-  ))
-})
+bot.action('add code', () => {
+  status = Statuses.AWAIT_CODE_INPUT;
+});
 
-bot.action('add code', (ctx) => {
-  status = Statuses.AWAIT_CODE_INPUT
+bot.action('clear status', () => {
+  status = null;
 });
 
 bot.on('text', async (ctx) => {
-  if (status === Statuses.AWAIT_CODE_INPUT) {
-    status = null;
+  try {
+    if (status === Statuses.AWAIT_CODE_INPUT) {
+      const text = ctx.message.text;
+      const newCode = await User.requestCode(text);
+      const statusImagePath = resolve(`./static/${newCode.internalStatus.percent}.png`)
+      const statusImage = fs.existsSync(statusImagePath) && fs.createReadStream(statusImagePath)
 
-    const text = ctx.message.text;
+      if (!user) {
+        user = new User(ctx.from);
+      }
+      
+      user.updateCode(newCode);
+      
+      if (statusImage) {
+        ctx.replyWithPhoto({
+          source: statusImage,
+        }, {
+          caption: MESSAGES.status(newCode),
+          parse_mode: 'HTML'
+        });
+      } else {
+        ctx.reply(MESSAGES.status(newCode), {
+          parse_mode: 'HTML'
+        })
+      }
 
-    if (!user) {
-      user = new User(ctx.from);
+      status = null;
+    } else {
+      console.warn('on text default');
+      ctx.reply('on text default');
     }
-
-    const newCode = await User.requestCode(text)
-    user.updateCode(newCode)
-    ctx.replyWithPhoto({
-      source: fs.createReadStream(resolve(`./static/${newCode.internalStatus.percent}.png`))
-    }, {
-      caption: `
-<b>Процент:</b> <b>${newCode.internalStatus.percent}</b>
-<b>Документы поданы:</b> ${newCode.receptionDate}
-<b>Статус:</b> ${newCode.passportStatus.name}
-<b>Внутренний статус:</b> ${newCode.internalStatus.name}
-      `,
-      parse_mode: 'HTML'
-    })
-  } else {
-    console.warn('on text default');
-    ctx.reply('on text default')
+  } catch(e) {
+    ctx.reply(e);
   }
 });
 
-bot.catch(async (err, ctx) => {
+bot.catch((err) => {
   console.error(err);
 });
 

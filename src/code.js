@@ -14,5 +14,6 @@ export default class Code {
       name: internalStatus?.name,
       percent: internalStatus?.percent,
     };
+    this.updateTime = Date.now();
   }
 }
