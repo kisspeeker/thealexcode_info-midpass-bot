@@ -15,14 +15,5 @@ export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/funpics-bot-logs?sort
 export const MESSAGES = {
   start: `Privet! Введи номер своего заявления`,
   startForUser: `Privet! Я нашел твои прошлые отслеживания`,
-  status(code) {
-    return `
-<b>Процент:</b> <b>${code.internalStatus.percent}</b>
-<b>Документы поданы:</b> ${code.receptionDate}
-<b>Статус:</b> ${code.passportStatus.name}
-<b>Внутренний статус:</b> ${code.internalStatus.name}
-`
-  }
+  errorRequestCode: 'Не удалось получить информацию о заявлении. Проверь правильность номера заявления или попробуй позже.',
 }
-
-export const USERS = []

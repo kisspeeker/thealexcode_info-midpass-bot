@@ -16,4 +16,14 @@ export default class Code {
     };
     this.updateTime = Date.now();
   }
+
+  get status() {
+    return `
+<b>uid:</b> <b>${this.uid || '-'}</b>
+<b>Процент:</b> <b>${this.internalStatus.percent || '-'}</b>
+<b>Документы поданы:</b> ${this.receptionDate || '-'}
+<b>Статус:</b> ${this.passportStatus.name || '-'}
+<b>Внутренний статус:</b> ${this.internalStatus.name || '-'}
+    `
+  }
 }

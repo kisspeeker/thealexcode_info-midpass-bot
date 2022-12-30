@@ -1,4 +1,4 @@
-import { API_ROUTE_MIDPASS } from './constants.js';
+import { API_ROUTE_MIDPASS, MESSAGES } from './constants.js';
 import { axiosInstance } from './api.js'
 import Code from './code.js';
 
@@ -21,11 +21,15 @@ export default class User {
     return !!this.codes.length
   }
 
-  static async requestCode(uid = '') {
+  get codeStatuses() {
+    return this.codes.map((code) => code.status)
+  }
+
+  async requestCode(uid = '') {
     try {
       return new Code((await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data)
     } catch(e) {
-      throw 'Не удалось получить информацию о заявлении. Проверь правильность номера заявления или попробуй позже.';
+      throw MESSAGES.errorRequestCode;
     }
   }
 
