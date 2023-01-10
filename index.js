@@ -6,23 +6,15 @@ import {
   BOT_TOKEN,
   MESSAGES,
 } from './src/constants.js';
-
 import User from './src/user.js';
+import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
-const Statuses = {
-  AWAIT_CODE_INPUT: 'AWAIT_CODE_INPUT',
-}
 
 const USERS = []
-const USER_STATUSES = {}
-
-const getUserById = (id) => {
-  return USERS.find((user) => user.id === id)
-}
+const getUserById = (id) => USERS.find((user) => user.id === id);
 const updateUsers = (user) => {
   const foundIndex = USERS.findIndex((cur) => cur.id === user.id);
-
   if (foundIndex >= 0) {
     USERS[USERS.findIndex((cur) => cur.id === user.id)] = user;
   } else {
@@ -30,104 +22,130 @@ const updateUsers = (user) => {
   }
 }
 
-const keyboardMenu = (currentUser) => {
-  const res = [
-    [
-      Markup.button.callback('Добавить заявление', Statuses.AWAIT_CODE_INPUT, !currentUser),
-    ],
-  ]
+const keyboardDefault = (currentUser) => {
+  const res = []
 
   if (currentUser && currentUser.hasCodes) {
-    res.push(currentUser.codes.map((code) => Markup.button.callback(`Обновить ${code.uid}`, `update ${code.uid}`)))
+    currentUser.codes.forEach((code) => res.push(Markup.button.text(`Обновить ${code.shortUid}`)))
   }
 
-  return Markup.inlineKeyboard(res, {
-    resize: true
-  })
+  return res.length ? Markup.keyboard(res).resize() : []
+}
+
+const keyboardInlineSubscribe = (code, needHide = false) => {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('Подписаться на обновления', `subscribe ${code.uid}`, needHide || !code.uid),
+    ],
+  ]).resize()
 }
 
 bot.start((ctx) => {
   let currentUser = getUserById(ctx.from.id);
 
   if (currentUser) {
-    ctx.reply(MESSAGES.startForUser, keyboardMenu(currentUser));
+    ctx.reply(MESSAGES.startForUser, {
+      parse_mode: 'HTML',
+      ...keyboardDefault(currentUser)
+    });
   } else {
-    updateUsers(new User(ctx.from));
-    currentUser = getUserById(ctx.from.id);
-    USER_STATUSES[currentUser.id] = Statuses.AWAIT_CODE_INPUT;
-    ctx.reply(MESSAGES.start, keyboardMenu());
-  }
-});
-
-bot.action(Statuses.AWAIT_CODE_INPUT, (ctx) => {
-  const currentUser = getUserById(ctx.from.id);
-
-  if (currentUser) {
-    USER_STATUSES[currentUser.id] = Statuses.AWAIT_CODE_INPUT;
-
-    ctx.reply('Введи номер заявления', {
+    if (!currentUser) {
+      updateUsers(new User(ctx.from));
+    }
+    ctx.reply(MESSAGES.start, {
       parse_mode: 'HTML',
     });
   }
 });
 
-bot.action(/update (.+)/, async (ctx) => {
-  const currentUser = getUserById(ctx.from.id);
+bot.action(/subscribe (.+)/, async (ctx) => {
   const codeUid = ctx.match[1];
+  let currentUser = getUserById(ctx.from.id);
 
-  if (currentUser) {
-    USER_STATUSES[currentUser.id] = null;
+  if (!currentUser) {
+    updateUsers(new User(ctx.from));
+    currentUser = getUserById(ctx.from.id);
+  }
 
-    ctx.reply(`${currentUser.codes.find((code) => code.uid === codeUid).status}`, {
+  const isSubscribeEnableAlready = currentUser.codes.some((code) => code.uid === codeUid);
+
+  if (isSubscribeEnableAlready) {
+    ctx.reply(MESSAGES.subscribeEnableAlready(codeUid), {
       parse_mode: 'HTML',
-      ...keyboardMenu(currentUser)
+      ...keyboardDefault(currentUser)
+    });
+  } else {
+    currentUser.updateCode(await currentUser.requestCode(codeUid));
+    updateUsers(currentUser);
+    ctx.reply(MESSAGES.subscribeEnable(codeUid), {
+      parse_mode: 'HTML',
+      ...keyboardDefault(currentUser)
     });
   }
 });
 
 bot.on('text', async (ctx) => {
-  const currentUser = getUserById(ctx.from.id);
+  let currentUser = getUserById(ctx.from.id);
+  let needSubscribe = false;
 
-  if (currentUser && USER_STATUSES[currentUser.id] === Statuses.AWAIT_CODE_INPUT) {
-    try {
-      const text = ctx.message.text;
-      // const newCode = new Code({ uid: ctx.message.text })
-      const newCode = await currentUser.requestCode(text);
-      const statusImagePath = resolve(`./static/${newCode.internalStatus.percent}.png`)
-      const statusImage = fs.existsSync(statusImagePath) && fs.createReadStream(statusImagePath)
+  if (!currentUser) {
+    updateUsers(new User(ctx.from));
+    currentUser = getUserById(ctx.from.id);
+  }
 
-      currentUser.updateCode(newCode);
+  try {
+    const text = String(ctx.message.text).toLowerCase();
+    let codeUid = text;
 
-      USER_STATUSES[currentUser.id] = null;
+    if (text.startsWith('обновить')) {
+      let shortUidToUpdate = text.match(/обновить (.+)/) && text.match(/обновить (.+)/)[1];
 
-      if (statusImage) {
-        ctx.replyWithPhoto({
-          source: statusImage,
-        }, {
-          caption: newCode.status,
-          parse_mode: 'HTML',
-          ...keyboardMenu(currentUser)
-        });
+      if (Code.isShortValid(shortUidToUpdate)) {
+        codeUid = currentUser.codes.find((code) => code.shortUid === shortUidToUpdate)?.uid;
+        needSubscribe = true;
       } else {
-        ctx.reply(newCode.status, {
+        ctx.reply(MESSAGES.errorValidateCode, {
           parse_mode: 'HTML',
-          ...keyboardMenu(currentUser)
-        })
+          ...keyboardDefault(currentUser),
+        });
+        return
       }
-    } catch(e) {
-      USER_STATUSES[currentUser.id] = null;
-
-      ctx.reply(e || MESSAGES.errorRequestCode, {
-        parse_mode: 'HTML',
-        ...keyboardMenu(currentUser)
-      });
     }
-  } else {
-    USER_STATUSES[currentUser.id] = null;
 
-    ctx.reply('on text default', {
+    if (!Code.isValid(codeUid)) {
+      ctx.reply(MESSAGES.errorValidateCode, {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+      return
+    }
+
+    const newCode = await currentUser.requestCode(codeUid);
+    const statusImagePath = resolve(`./static/${newCode.internalStatus.percent}.png`);
+    const statusImage = fs.existsSync(statusImagePath) && fs.createReadStream(statusImagePath);
+
+    if (needSubscribe && currentUser) {
+      currentUser.updateCode(newCode);
+    }
+
+    if (statusImage) {
+      ctx.replyWithPhoto({
+        source: statusImage,
+      }, {
+        caption: newCode.status,
+        parse_mode: 'HTML',
+        ...keyboardInlineSubscribe(newCode, needSubscribe)
+      });
+    } else {
+      ctx.reply(newCode.status, {
+        parse_mode: 'HTML',
+        ...keyboardInlineSubscribe(newCode, needSubscribe)
+      })
+    }
+  } catch(e) {
+    ctx.reply(e || MESSAGES.errorRequestCode, {
       parse_mode: 'HTML',
-      ...keyboardMenu(currentUser)
+      ...keyboardDefault(currentUser),
     });
   }
 });

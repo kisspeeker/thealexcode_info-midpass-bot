@@ -1,4 +1,4 @@
-import { API_ROUTE_MIDPASS, MESSAGES } from './constants.js';
+import { API_ROUTE_MIDPASS, MESSAGES, DEBUG } from './constants.js';
 import { axiosInstance } from './api.js'
 import Code from './code.js';
 
@@ -27,7 +27,12 @@ export default class User {
 
   async requestCode(uid = '') {
     try {
-      return new Code((await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data)
+      const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
+
+      if (!newCode) {
+        throw MESSAGES.errorRequestCode
+      }
+      return new Code(newCode)
     } catch(e) {
       throw MESSAGES.errorRequestCode;
     }
