@@ -14,11 +14,11 @@ import Code from './src/code.js';
 const bot = new Telegraf(BOT_TOKEN);
 
 const USERS = []
-const getUserById = (id) => USERS.find((user) => user.id === id);
+const getUserByChatId = (chatId) => USERS.find((user) => user.chatId === chatId);
 const updateUsers = (user) => {
-  const foundIndex = USERS.findIndex((cur) => cur.id === user.id);
+  const foundIndex = USERS.findIndex((cur) => cur.chatId === user.chatId);
   if (foundIndex >= 0) {
-    USERS[USERS.findIndex((cur) => cur.id === user.id)] = user;
+    USERS[USERS.findIndex((cur) => cur.chatId === user.chatId)] = user;
   } else {
     USERS.push(user);
   }
@@ -51,14 +51,14 @@ const job = new CronJob('0 0 */1 * * *', async function() {
           currentUser.updateUserCodes(newCode);
           
           if (statusImage) {
-            await bot.telegram.sendPhoto(currentUser.id, {
+            await bot.telegram.sendPhoto(currentUser.chatId, {
               source: statusImage
             }, {
               parse_mode: 'HTML',
               caption: MESSAGES.codeHasChanges(newCode.status),
             });
           } else {
-            await bot.telegram.sendMessage(currentUser.id, MESSAGES.codeHasChanges(newCode.status), {
+            await bot.telegram.sendMessage(currentUser.chatId, MESSAGES.codeHasChanges(newCode.status), {
               parse_mode: 'HTML',
             });
           }
@@ -94,7 +94,7 @@ const keyboardInlineSubscribe = (code, needHide = false) => {
 }
 
 bot.start((ctx) => {
-  let currentUser = getUserById(ctx.from.id);
+  let currentUser = getUserByChatId(ctx.from.id);
 
   if (currentUser) {
     ctx.reply(MESSAGES.startForUser, {
@@ -104,7 +104,7 @@ bot.start((ctx) => {
   } else {
     if (!currentUser) {
       updateUsers(new User(ctx.from));
-      currentUser = getUserById(ctx.from.id);
+      currentUser = getUserByChatId(ctx.from.id);
     }
     ctx.reply(MESSAGES.start, {
       parse_mode: 'HTML',
@@ -117,11 +117,11 @@ bot.start((ctx) => {
 
 bot.action(/subscribe (.+)/, async (ctx) => {
   const codeUid = ctx.match[1];
-  let currentUser = getUserById(ctx.from.id);
+  let currentUser = getUserByChatId(ctx.from.id);
 
   if (!currentUser) {
     updateUsers(new User(ctx.from));
-    currentUser = getUserById(ctx.from.id);
+    currentUser = getUserByChatId(ctx.from.id);
   }
 
   const isSubscribeEnableAlready = currentUser.codes.some((code) => code.uid === codeUid);
@@ -142,12 +142,12 @@ bot.action(/subscribe (.+)/, async (ctx) => {
 });
 
 bot.on('text', async (ctx) => {
-  let currentUser = getUserById(ctx.from.id);
+  let currentUser = getUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
 
   if (!currentUser) {
     updateUsers(new User(ctx.from));
-    currentUser = getUserById(ctx.from.id);
+    currentUser = getUserByChatId(ctx.from.id);
   }
 
   try {

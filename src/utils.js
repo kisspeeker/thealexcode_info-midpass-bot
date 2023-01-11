@@ -8,11 +8,11 @@ async function logMessage(data = {}) {
       imagePath: String(data.imagePath || '-'),
       imageGenerator: String(data.imageGenerator || '-'),
     }
-  })
+  });
 }
 
 async function getLogsFile() {
-  const res = (await axiosInstance.get(API_ROUTE_LOGS)).data
+  const res = (await axiosInstance.get(API_ROUTE_LOGS)).data;
   
   await fs.writeFile(LOGS_PATH, JSON.stringify(res), 'utf8', (e) => console.error(e));
   
@@ -23,6 +23,6 @@ async function sendStartMessageToAdmin(ctx) {
   const { id, username } = ctx?.message?.from;
 
   if (ADMIN_CHAT_ID) {
-    await ctx.telegram.sendMessage(ADMIN_CHAT_ID, `🔥 New user! \n\nid: ${id} \nusername: ${username}`)
+    await ctx.telegram.sendMessage(ADMIN_CHAT_ID, `🔥 New user! \n\nid: ${id} \nusername: ${username}`);
   }
 }

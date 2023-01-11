@@ -3,12 +3,14 @@ import Code from './code.js';
 export default class User {
   constructor({ 
     id, 
+    chat_id, 
     first_name,
     last_name,
     username, 
     codes,
   }) {
     this.id = id;
+    this.chatId = chat_id;
     this.firstName = first_name;
     this.lastName = last_name;
     this.userName = username;

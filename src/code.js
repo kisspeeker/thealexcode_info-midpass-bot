@@ -1,16 +1,16 @@
 import { API_ROUTE_MIDPASS, MESSAGES, DEBUG } from './constants.js';
-import { axiosInstance } from './api.js'
+import { axiosInstance } from './api.js';
 
 const shortUidLength = 6;
 
 export default class Code {
-  constructor({ uid, sourceUid, receptionDate, passportStatus, internalStatus }) {
+  constructor({ uid, sourceUid, receptionDate, passportStatus, internalStatus, updateTime }) {
     this.uid = uid;
     this.shortUid = `*${this.uid.slice(-shortUidLength)}`;
     this.sourceUid = sourceUid;
     this.receptionDate = receptionDate;
     this.passportStatus = {
-      id: passportStatus?.id,
+      passportStatusId: passportStatus?.id,
       name: passportStatus?.name,
       description: passportStatus?.description,
       color: passportStatus?.color,
@@ -20,7 +20,7 @@ export default class Code {
       name: internalStatus?.name,
       percent: internalStatus?.percent,
     };
-    this.updateTime = Date.now();
+    this.updateTime = (updateTime ? new Date(updateTime) : new Date()).toLocaleString('en-EN');
   }
 
   get status() {
@@ -40,7 +40,7 @@ export default class Code {
       const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
 
       if (!newCode) {
-        throw MESSAGES.errorRequestCode
+        throw MESSAGES.errorRequestCode;
       }
       return new Code(newCode)
     } catch(e) {
