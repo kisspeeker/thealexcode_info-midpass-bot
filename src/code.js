@@ -1,3 +1,6 @@
+import { API_ROUTE_MIDPASS, MESSAGES, DEBUG } from './constants.js';
+import { axiosInstance } from './api.js'
+
 const shortUidLength = 6;
 
 export default class Code {
@@ -21,14 +24,7 @@ export default class Code {
   }
 
   get status() {
-    return `
-<b>Номер заявления:</b> <b>${this.uid || '-'}</b>
-
-<b>Процент:</b> <b>${this.internalStatus.percent || '-'}</b>
-<b>Документы поданы:</b> ${this.receptionDate || '-'}
-<b>Статус:</b> ${this.passportStatus.name || '-'}
-<b>Внутренний статус:</b> ${this.internalStatus.name || '-'}
-    `
+    return MESSAGES.codeStatus(this);
   }
 
   static isValid(uid = '') {
@@ -37,5 +33,24 @@ export default class Code {
 
   static isShortValid(shortUid = '') {
     return shortUid && String(shortUid).length === shortUidLength + 1;
+  }
+
+  static async requestCode(uid = '') {
+    try {
+      const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
+
+      if (!newCode) {
+        throw MESSAGES.errorRequestCode
+      }
+      return new Code(newCode)
+    } catch(e) {
+      throw MESSAGES.errorRequestCode;
+    }
+  }
+
+  hasChangesWith(code = {}) {
+    return this.internalStatus.percent !== code.internalStatus.percent
+      || this.passportStatus.name !== code.passportStatus.name
+      || this.internalStatus.name !== code.internalStatus.name;
   }
 }

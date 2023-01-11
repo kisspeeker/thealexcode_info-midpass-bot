@@ -1,5 +1,3 @@
-import { API_ROUTE_MIDPASS, MESSAGES, DEBUG } from './constants.js';
-import { axiosInstance } from './api.js'
 import Code from './code.js';
 
 export default class User {
@@ -25,20 +23,7 @@ export default class User {
     return this.codes.map((code) => code.status)
   }
 
-  async requestCode(uid = '') {
-    try {
-      const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
-
-      if (!newCode) {
-        throw MESSAGES.errorRequestCode
-      }
-      return new Code(newCode)
-    } catch(e) {
-      throw MESSAGES.errorRequestCode;
-    }
-  }
-
-  updateCode(currentCode) {
+  updateUserCodes(currentCode) {
     if (currentCode && currentCode instanceof Code) {
       const foundIndex = this.codes.findIndex(x => x.uid == currentCode.uid);
 
