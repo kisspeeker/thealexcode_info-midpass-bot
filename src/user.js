@@ -43,4 +43,8 @@ export default class User {
       }
     }
   }
+
+  removeUserCode(uid = '') {
+    this.codes = this.codes.filter((code) => code.uid !== uid);
+  }
 }

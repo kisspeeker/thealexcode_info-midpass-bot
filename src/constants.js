@@ -10,6 +10,7 @@ export const LOGS_PATH = resolve('./data/logs.json');
 export const API_ROUTE_MIDPASS = 'https://info.midpass.ru/api/request';
 
 export const API_KEY = process.env.API_KEY
+export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
 export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
 
@@ -36,6 +37,8 @@ export const MESSAGES = {
 `,
   subscribeEnable: (uid = '') => `✅ Теперь я буду уведомлять тебя об изменениях статуса заявления <b>${uid}</b>.`,
   subscribeEnableAlready: (uid = '') => `✅ Заявление уже отслеживается <b>${uid}</b>`,
+  unsubscribe: 'Выберите заявление, которое нужно перестать отслеживать:',
+  unsubscribeEnable: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
   codeHasChanges: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
   codeStatus: (code = {}) => 
 `<b>#️⃣ Номер заявления:</b> ${code.uid || '-'}
@@ -52,7 +55,7 @@ export const MESSAGES = {
 `🔥 Новый пользователь! 
 
 <b>userName:</b> ${user.userName ? '@' + user.userName : '-'} 
-<b>id:</b> ${user.id || '-'}
+<b>id:</b> ${user.chatId || '-'}
 <b>firstName:</b> ${user.firstName || '-'}
 <b>lastName:</b> ${user.lastName || '-'}
 `,
@@ -69,4 +72,14 @@ ${message}
 `,
   errorValidateCode: '❌ Некорректный формат номера заявления. Проверь правильность номера заявления и попробуй ещё раз.',
   errorRequestCode: '❌ Ошибка получения информации о заявлении с сервера МИД РФ. Проверь правильность номера заявления и попробуй ещё раз.',
+}
+
+export const LOGS_TYPES = {
+  error: 'error',
+  successStart: 'successStart',
+  autoUpdateWithChanges: 'autoUpdateWithChanges',
+  subscribeEnable: 'subscribeEnable',
+  unsubscribeEnable: 'unsubscribeEnable',
+  successCodeStatus: 'successCodeStatus',
+  message: 'message',
 }

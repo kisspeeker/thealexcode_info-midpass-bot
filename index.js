@@ -7,14 +7,17 @@ import {
   BOT_TOKEN,
   MESSAGES,
   ADMIN_CHAT_ID,
+  LOGS_TYPES,
 } from './src/constants.js';
-import { getUsers, createUser, updateUser } from './src/api.js';
+import { getUsers, createUser, updateUser, logMessage } from './src/api.js';
 import User from './src/user.js';
 import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
 let USERS = []
+const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
 const requestUsers = async () => USERS = await getUsers() || [];
 const getUserByChatId = (chatId) => {
   const foundUser = USERS.find((user) => user.chatId === String(chatId));
@@ -22,21 +25,66 @@ const getUserByChatId = (chatId) => {
     return new User(foundUser)
   }
 };
-const sendMessageToAdmin = (message = '') => {
-  bot.telegram.sendMessage(ADMIN_CHAT_ID, message, {
+const sendMessageToAdmin = async (message = '') => {
+  await bot.telegram.sendMessage(ADMIN_CHAT_ID, message, {
     parse_mode: 'HTML',
   });
-}
+};
 const getStatusImage = (code = {}) => {
   const statusImagePath = resolve(`./static/${code?.internalStatus?.percent}.png`);
   if (fs.existsSync(statusImagePath)) {
     return fs.createReadStream(statusImagePath);
   }
-}
-const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
+};
+const keyboardDefault = (currentUser) => {
+  const res = []
+  if (currentUser && currentUser.hasCodes) {
+    currentUser.codes.forEach((code) => res.push(Markup.button.text(`Обновить ${code.shortUid} 🔄`)))
+  }
+  if (res.length) {
+    res.push(Markup.button.text(`Отписаться ❌`))
+  }
+  return res.length ? Markup.keyboard(res).resize() : []
+};
+const keyboardInlineSubscribe = (code, needHide = false) => {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('Подписаться на обновления', `subscribe ${code.uid}`, needHide || !code.uid),
+    ],
+  ]).resize()
+};
+const keyboardInlineUnsubscribe = (currentUser) => {
+  const res = []
+  if (currentUser && currentUser.hasCodes) {
+    currentUser.codes.forEach((code) => res.push([Markup.button.callback(`Отписаться от ${code.shortUid} ❌`, `unsubscribe ${code.uid}`)]))
+  }
+  return res.length ? Markup.inlineKeyboard(res).resize() : [];
+};
+const sendCodeStatusToUser = async (
+  currentUser = {}, 
+  newCode = {}, 
+  needHideKeyboard = false, 
+  hasChanges = false
+) => {
+  const statusImage = getStatusImage(newCode);
 
-const job = new CronJob('0 0 */1 * * *', async function() {
+  if (statusImage) {
+    await bot.telegram.sendPhoto(currentUser.chatId, {
+      source: statusImage
+    }, {
+      parse_mode: 'HTML',
+      caption: hasChanges ? MESSAGES.codeHasChanges(newCode.status) : newCode.status,
+      ...keyboardInlineSubscribe(newCode, needHideKeyboard),
+    });
+  } else {
+    await bot.telegram.sendMessage(currentUser.chatId, hasChanges ? MESSAGES.codeHasChanges(newCode.status) : newCode.status, {
+      parse_mode: 'HTML',
+      ...keyboardInlineSubscribe(newCode, needHideKeyboard),
+    });
+  }
+};
+
+const job = new CronJob('*/30 * * * * *', async function() {
   try {
     await requestUsers();
 
@@ -46,55 +94,34 @@ const job = new CronJob('0 0 */1 * * *', async function() {
       for (let ii in currentUser.codes) {
         const code = new Code(currentUser.codes[ii]);
         const newCode = await Code.requestCode(code.uid);
+        const hasChanges = code.hasChangesWith(newCode);
 
-        if (code.hasChangesWith(newCode)) {
-          const statusImage = getStatusImage(newCode);
+        if (hasChanges) {
           currentUser.updateUserCodes(newCode);
-          await updateUser(currentUser);
           
-          if (statusImage) {
-            await bot.telegram.sendPhoto(currentUser.chatId, {
-              source: statusImage
-            }, {
-              parse_mode: 'HTML',
-              caption: MESSAGES.codeHasChanges(newCode.status),
-            });
-          } else {
-            await bot.telegram.sendMessage(currentUser.chatId, MESSAGES.codeHasChanges(newCode.status), {
-              parse_mode: 'HTML',
-            });
-          }
+          await updateUser(currentUser);
+          await sendCodeStatusToUser(currentUser, code, true, true);
           await promiseTimeout(1000);
+          await logMessage({
+            type: LOGS_TYPES.autoUpdateWithChanges,
+            user: currentUser,
+            message: `Code with changes: ${newCode.uid}`,
+          });
+          await sendMessageToAdmin(`<b>🔥🔥 У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
         }
       }
-      console.warn('=====BEFORE promiseTimeout', currentUser.firstName);
       await promiseTimeout(10000);
-      console.warn('=====AFTER promiseTimeout', currentUser.firstName);
     }
   } catch(e) {
     console.error(e);
-    sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`)
+    await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
+    await logMessage({
+      type: LOGS_TYPES.error,
+      message: `Ошибка CronJob: ${e}`,
+    });
   }
 });
 job.start();
-
-const keyboardDefault = (currentUser) => {
-  const res = []
-
-  if (currentUser && currentUser.hasCodes) {
-    currentUser.codes.forEach((code) => res.push(Markup.button.text(`Обновить ${code.shortUid}`)))
-  }
-
-  return res.length ? Markup.keyboard(res).resize() : []
-}
-
-const keyboardInlineSubscribe = (code, needHide = false) => {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback('Подписаться на обновления', `subscribe ${code.uid}`, needHide || !code.uid),
-    ],
-  ]).resize()
-}
 
 bot.start(async (ctx) => {
   let currentUser = getUserByChatId(ctx.from.id);
@@ -102,7 +129,7 @@ bot.start(async (ctx) => {
   if (currentUser) {
     ctx.reply(MESSAGES.startForUser, {
       parse_mode: 'HTML',
-      ...keyboardDefault(currentUser)
+      ...keyboardDefault(currentUser),
     });
   } else {
     if (!currentUser) {
@@ -114,17 +141,50 @@ bot.start(async (ctx) => {
     });
   }
   if (!isAdmin(ctx)) {
-    sendMessageToAdmin(MESSAGES.newUser(currentUser))
+    await sendMessageToAdmin(MESSAGES.newUser(currentUser));
+    await logMessage({
+      type: LOGS_TYPES.successStart,
+      user: currentUser,
+    });
   }
+});
+
+bot.action(/unsubscribe (.+)/, async (ctx) => {
+  const codeUid = ctx.match[1];
+  let currentUser = getUserByChatId(ctx.from.id);
+  
+  if (!currentUser) {
+    return;
+  }
+
+  currentUser.removeUserCode(codeUid);
+  await updateUser(currentUser);
+  await requestUsers();
+  let replyOptions = {
+    parse_mode: 'HTML',
+  }
+  if (keyboardDefault(currentUser) && keyboardDefault(currentUser).length) {
+    replyOptions = {
+      ...replyOptions,
+      ...keyboardDefault(currentUser),
+    }
+  } else {
+    replyOptions.reply_markup = { remove_keyboard: true }
+  }
+  await logMessage({
+    type: LOGS_TYPES.unsubscribeEnable,
+    user: currentUser,
+    message: `unsubscribe code: ${codeUid}`,
+  });
+  ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
 });
 
 bot.action(/subscribe (.+)/, async (ctx) => {
   const codeUid = ctx.match[1];
   let currentUser = getUserByChatId(ctx.from.id);
-
+  
   if (!currentUser) {
-    currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    await requestUsers();
+    return;
   }
 
   const isSubscribeEnableAlready = (currentUser.codes || []).some((code) => code.uid === codeUid);
@@ -132,7 +192,7 @@ bot.action(/subscribe (.+)/, async (ctx) => {
   if (isSubscribeEnableAlready) {
     ctx.reply(MESSAGES.subscribeEnableAlready(codeUid), {
       parse_mode: 'HTML',
-      ...keyboardDefault(currentUser)
+      ...keyboardDefault(currentUser),
     });
   } else {
     currentUser.updateUserCodes(await Code.requestCode(codeUid));
@@ -140,7 +200,13 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     await requestUsers();
     ctx.reply(MESSAGES.subscribeEnable(codeUid), {
       parse_mode: 'HTML',
-      ...keyboardDefault(currentUser)
+      ...keyboardDefault(currentUser),
+    });
+
+    await logMessage({
+      type: LOGS_TYPES.subscribeEnable,
+      user: currentUser,
+      message: `subscribe code: ${codeUid}`,
     });
   }
 });
@@ -158,6 +224,14 @@ bot.on('text', async (ctx) => {
     const text = String(ctx.message.text).toLowerCase();
     let codeUid = text;
 
+    if (text.startsWith('отписаться')) {
+      ctx.reply(MESSAGES.unsubscribe, {
+        parse_mode: 'HTML',
+        ...keyboardInlineUnsubscribe(currentUser),
+      });
+      return;
+    }
+
     if (isAdmin(ctx) && text.startsWith('написать')) {
       const userId = text.split(' ')[1];
       const messageToUser = text.split(' ').slice(2).join(' ');
@@ -165,36 +239,20 @@ bot.on('text', async (ctx) => {
       bot.telegram.sendMessage(userId, messageToUser, {
         parse_mode: 'HTML',
       });
-      bot.telegram.sendMessage(ADMIN_CHAT_ID, `Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`, {
-        parse_mode: 'HTML',
-      });
-      return
+      await sendMessageToAdmin(`Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`);
+      return;
     }
 
     if (text.startsWith('обновить')) {
-      let shortUidToUpdate = text.match(/обновить (.+)/) && text.match(/обновить (.+)/)[1];
+      let shortUidToUpdate = text.match(/обновить (.+) (.+)/) && text.match(/обновить (.+) (.+)/)[1];
 
       if (Code.isShortValid(shortUidToUpdate)) {
         const currentUserCode = new Code(currentUser.codes.find((code) => code.shortUid === shortUidToUpdate));
         codeUid = currentUserCode?.uid;
 
         if (new Date() - new Date(currentUserCode.updateTime) < 30000) {
-          const statusImage = getStatusImage(currentUserCode);
-          if (statusImage) {
-            ctx.replyWithPhoto({
-              source: statusImage,
-            }, {
-              caption: currentUserCode.status,
-              parse_mode: 'HTML',
-              ...keyboardInlineSubscribe(currentUserCode, true)
-            });
-          } else {
-            ctx.reply(currentUserCode.status, {
-              parse_mode: 'HTML',
-              ...keyboardInlineSubscribe(currentUserCode, true)
-            })
-          }
-          return
+          await sendCodeStatusToUser(currentUser, currentUserCode, true);
+          return;
         }
         isUpdatingCode = true;
       } else {
@@ -208,8 +266,13 @@ bot.on('text', async (ctx) => {
 
     if (!Code.isValid(codeUid)) {
       if (!isAdmin(ctx)) {
-        sendMessageToAdmin(MESSAGES.userMessageWithoutUid(currentUser, text))
+        await sendMessageToAdmin(MESSAGES.userMessageWithoutUid(currentUser, text));
       }
+      await logMessage({
+        type: LOGS_TYPES.message,
+        user: currentUser,
+        message: text,
+      });
 
       ctx.reply(MESSAGES.errorValidateCode, {
         parse_mode: 'HTML',
@@ -219,39 +282,36 @@ bot.on('text', async (ctx) => {
     }
 
     const newCode = await Code.requestCode(codeUid);
-    const statusImage = getStatusImage(newCode);
 
     if (isUpdatingCode && currentUser) {
       currentUser.updateUserCodes(newCode);
     }
 
-    if (statusImage) {
-      ctx.replyWithPhoto({
-        source: statusImage,
-      }, {
-        caption: newCode.status,
-        parse_mode: 'HTML',
-        ...keyboardInlineSubscribe(newCode, isUpdatingCode)
-      });
-    } else {
-      ctx.reply(newCode.status, {
-        parse_mode: 'HTML',
-        ...keyboardInlineSubscribe(newCode, isUpdatingCode)
-      })
-    }
+    await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
+    await logMessage({
+      type: LOGS_TYPES.successCodeStatus,
+      user: currentUser,
+      message: `Code: ${newCode.uid}`,
+    });
+    
   } catch(e) {
     ctx.reply(e || MESSAGES.errorRequestCode, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
+    await logMessage({
+      type: LOGS_TYPES.error,
+      user: currentUser,
+      message: e || MESSAGES.errorRequestCode,
+    });
   }
 });
 
 bot.catch((err) => {
-  console.error(err);
+  console.error('=== BOT CATCH ===', err);
 });
 
 requestUsers().then(() => {
-  bot.launch()
+  bot.launch();
   console.warn('BOT STARTED');
 })
