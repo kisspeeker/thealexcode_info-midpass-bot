@@ -3,18 +3,25 @@ import Code from './code.js';
 export default class User {
   constructor({ 
     id, 
-    chat_id, 
+    chatId, 
     first_name,
+    firstName,
     last_name,
+    lastName,
     username, 
+    userName, 
     codes,
+    isNew
   }) {
-    this.id = id;
-    this.chatId = chat_id;
-    this.firstName = first_name;
-    this.lastName = last_name;
-    this.userName = username;
+    this.chatId = String(chatId || id);
+    this.firstName = first_name || firstName;
+    this.lastName = last_name || lastName;
+    this.userName = username || userName;
     this.codes = Array.isArray(codes) ? codes : [];
+
+    if (!isNew) {
+      this.id = id;
+    }
   }
 
   get hasCodes() {

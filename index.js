@@ -8,21 +8,20 @@ import {
   MESSAGES,
   ADMIN_CHAT_ID,
 } from './src/constants.js';
+import { getUsers, createUser, updateUser } from './src/api.js';
 import User from './src/user.js';
 import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
-const USERS = []
-const getUserByChatId = (chatId) => USERS.find((user) => user.chatId === chatId);
-const updateUsers = (user) => {
-  const foundIndex = USERS.findIndex((cur) => cur.chatId === user.chatId);
-  if (foundIndex >= 0) {
-    USERS[USERS.findIndex((cur) => cur.chatId === user.chatId)] = user;
-  } else {
-    USERS.push(user);
+let USERS = []
+const requestUsers = async () => USERS = await getUsers() || [];
+const getUserByChatId = (chatId) => {
+  const foundUser = USERS.find((user) => user.chatId === String(chatId));
+  if (foundUser) {
+    return new User(foundUser)
   }
-}
+};
 const sendMessageToAdmin = (message = '') => {
   bot.telegram.sendMessage(ADMIN_CHAT_ID, message, {
     parse_mode: 'HTML',
@@ -39,16 +38,19 @@ const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
 
 const job = new CronJob('0 0 */1 * * *', async function() {
   try {
+    await requestUsers();
+
     for (let i in USERS) {
-      const currentUser = USERS[i];
+      const currentUser = new User(USERS[i]);
 
       for (let ii in currentUser.codes) {
-        const code = currentUser.codes[ii];
+        const code = new Code(currentUser.codes[ii]);
         const newCode = await Code.requestCode(code.uid);
 
         if (code.hasChangesWith(newCode)) {
           const statusImage = getStatusImage(newCode);
           currentUser.updateUserCodes(newCode);
+          await updateUser(currentUser);
           
           if (statusImage) {
             await bot.telegram.sendPhoto(currentUser.chatId, {
@@ -62,10 +64,11 @@ const job = new CronJob('0 0 */1 * * *', async function() {
               parse_mode: 'HTML',
             });
           }
+          await promiseTimeout(1000);
         }
       }
       console.warn('=====BEFORE promiseTimeout', currentUser.firstName);
-      await promiseTimeout(5000);
+      await promiseTimeout(10000);
       console.warn('=====AFTER promiseTimeout', currentUser.firstName);
     }
   } catch(e) {
@@ -93,7 +96,7 @@ const keyboardInlineSubscribe = (code, needHide = false) => {
   ]).resize()
 }
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
   let currentUser = getUserByChatId(ctx.from.id);
 
   if (currentUser) {
@@ -103,8 +106,8 @@ bot.start((ctx) => {
     });
   } else {
     if (!currentUser) {
-      updateUsers(new User(ctx.from));
-      currentUser = getUserByChatId(ctx.from.id);
+      currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
+      await requestUsers();
     }
     ctx.reply(MESSAGES.start, {
       parse_mode: 'HTML',
@@ -120,11 +123,11 @@ bot.action(/subscribe (.+)/, async (ctx) => {
   let currentUser = getUserByChatId(ctx.from.id);
 
   if (!currentUser) {
-    updateUsers(new User(ctx.from));
-    currentUser = getUserByChatId(ctx.from.id);
+    currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
+    await requestUsers();
   }
 
-  const isSubscribeEnableAlready = currentUser.codes.some((code) => code.uid === codeUid);
+  const isSubscribeEnableAlready = (currentUser.codes || []).some((code) => code.uid === codeUid);
 
   if (isSubscribeEnableAlready) {
     ctx.reply(MESSAGES.subscribeEnableAlready(codeUid), {
@@ -133,7 +136,8 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     });
   } else {
     currentUser.updateUserCodes(await Code.requestCode(codeUid));
-    updateUsers(currentUser);
+    await updateUser(currentUser);
+    await requestUsers();
     ctx.reply(MESSAGES.subscribeEnable(codeUid), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser)
@@ -146,8 +150,8 @@ bot.on('text', async (ctx) => {
   let isUpdatingCode = false;
 
   if (!currentUser) {
-    updateUsers(new User(ctx.from));
-    currentUser = getUserByChatId(ctx.from.id);
+    currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
+    await requestUsers();
   }
 
   try {
@@ -171,7 +175,27 @@ bot.on('text', async (ctx) => {
       let shortUidToUpdate = text.match(/обновить (.+)/) && text.match(/обновить (.+)/)[1];
 
       if (Code.isShortValid(shortUidToUpdate)) {
-        codeUid = currentUser.codes.find((code) => code.shortUid === shortUidToUpdate)?.uid;
+        const currentUserCode = new Code(currentUser.codes.find((code) => code.shortUid === shortUidToUpdate));
+        codeUid = currentUserCode?.uid;
+
+        if (new Date() - new Date(currentUserCode.updateTime) < 30000) {
+          const statusImage = getStatusImage(currentUserCode);
+          if (statusImage) {
+            ctx.replyWithPhoto({
+              source: statusImage,
+            }, {
+              caption: currentUserCode.status,
+              parse_mode: 'HTML',
+              ...keyboardInlineSubscribe(currentUserCode, true)
+            });
+          } else {
+            ctx.reply(currentUserCode.status, {
+              parse_mode: 'HTML',
+              ...keyboardInlineSubscribe(currentUserCode, true)
+            })
+          }
+          return
+        }
         isUpdatingCode = true;
       } else {
         ctx.reply(MESSAGES.errorValidateCode, {
@@ -227,6 +251,7 @@ bot.catch((err) => {
   console.error(err);
 });
 
-bot.launch().then(() => {
+requestUsers().then(() => {
+  bot.launch()
   console.warn('BOT STARTED');
-});
+})
