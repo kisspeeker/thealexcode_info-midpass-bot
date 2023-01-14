@@ -113,12 +113,12 @@ const job = new CronJob('0 0 */1 * * *', async function() {
       await promiseTimeout(10000);
     }
   } catch(e) {
-    console.error(e);
-    await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
-    await logMessage({
-      type: LOGS_TYPES.error,
-      message: `Ошибка CronJob: ${e}`,
-    });
+    console.error(`<b>Ошибка CronJob:</b> \n${e}`);
+    // await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
+    // await logMessage({
+    //   type: LOGS_TYPES.error,
+    //   message: `Ошибка CronJob: ${e}`,
+    // });
   }
 });
 job.start();
