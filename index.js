@@ -100,7 +100,7 @@ const job = new CronJob('0 0 */1 * * *', async function() {
           currentUser.updateUserCodes(newCode);
           
           await updateUser(currentUser);
-          await sendCodeStatusToUser(currentUser, code, true, true);
+          await sendCodeStatusToUser(currentUser, newCode, true, true);
           await promiseTimeout(TIMEOUTS.cronNextUserCode);
           await logMessage({
             type: LOGS_TYPES.autoUpdateWithChanges,
