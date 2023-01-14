@@ -84,7 +84,7 @@ const sendCodeStatusToUser = async (
   }
 };
 
-const job = new CronJob('*/30 * * * * *', async function() {
+const job = new CronJob('0 0 */1 * * *', async function() {
   try {
     await requestUsers();
 
@@ -214,7 +214,7 @@ bot.action(/subscribe (.+)/, async (ctx) => {
 bot.on('text', async (ctx) => {
   let currentUser = getUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
-
+  
   if (!currentUser) {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
     await requestUsers();
@@ -235,8 +235,8 @@ bot.on('text', async (ctx) => {
     if (isAdmin(ctx) && text.startsWith('написать')) {
       const userId = text.split(' ')[1];
       const messageToUser = text.split(' ').slice(2).join(' ');
-
-      bot.telegram.sendMessage(userId, messageToUser, {
+      
+      await bot.telegram.sendMessage(userId, messageToUser, {
         parse_mode: 'HTML',
       });
       await sendMessageToAdmin(`Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`);
@@ -287,23 +287,26 @@ bot.on('text', async (ctx) => {
       currentUser.updateUserCodes(newCode);
     }
 
-    await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
+    if (newCode) {
+      await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
+    }
     await logMessage({
       type: LOGS_TYPES.successCodeStatus,
       user: currentUser,
-      message: `Code: ${newCode.uid}`,
+      message: `Code: ${newCode?.uid || '-'}`,
     });
     
   } catch(e) {
-    ctx.reply(e || MESSAGES.errorRequestCode, {
-      parse_mode: 'HTML',
-      ...keyboardDefault(currentUser),
-    });
-    await logMessage({
-      type: LOGS_TYPES.error,
-      user: currentUser,
-      message: e || MESSAGES.errorRequestCode,
-    });
+    console.error(e);
+    // ctx.reply(e || MESSAGES.errorRequestCode, {
+    //   parse_mode: 'HTML',
+    //   ...keyboardDefault(currentUser),
+    // });
+    // await logMessage({
+    //   type: LOGS_TYPES.error,
+    //   user: currentUser,
+    //   message: e || MESSAGES.errorRequestCode,
+    // });
   }
 });
 

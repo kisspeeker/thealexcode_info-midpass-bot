@@ -14,7 +14,6 @@ export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
 export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
 
-// Я умею отслеживать статус готовности загранпаспорта РФ и оповещать о его изменениях!
 export const MESSAGES = {
   start: `
 <b>👨 Privet!</b>
@@ -41,31 +40,33 @@ export const MESSAGES = {
   unsubscribeEnable: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
   codeHasChanges: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
   codeStatus: (code = {}) => 
-`<b>#️⃣ Номер заявления:</b> ${code.uid || '-'}
+`<b>#️⃣ Номер заявления:</b> ${code?.uid || '-'}
 
-<b>🟡 Процент:</b> <b>${code.internalStatus.percent || '-'}</b>
+<b>🟡 Процент:</b> <b>${code?.internalStatus?.percent || '-'}</b>
 
-<b>🟡 Статус:</b> ${code.passportStatus.name || '-'}
+<b>🟡 Статус:</b> ${code?.passportStatus?.name || '-'}
 
-<b>🟡 Внутренний статус:</b> ${code.internalStatus.name || '-'}
+<b>🟡 Внутренний статус:</b> ${code?.internalStatus?.name || '-'}
 
-<b>📅 Дата подачи:</b> ${code.receptionDate || '-'}
+<b>📅 Дата подачи:</b> ${code?.receptionDate || '-'}
 `,
   newUser: (user = {}) => 
 `🔥 Новый пользователь! 
 
-<b>userName:</b> ${user.userName ? '@' + user.userName : '-'} 
-<b>id:</b> ${user.chatId || '-'}
-<b>firstName:</b> ${user.firstName || '-'}
-<b>lastName:</b> ${user.lastName || '-'}
+<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'} 
+<b>chatId:</b> ${user?.chatId || '-'}
+<b>id:</b> ${user?.id || '-'}
+<b>firstName:</b> ${user?.firstName || '-'}
+<b>lastName:</b> ${user?.lastName || '-'}
 `,
   userMessageWithoutUid: (user = {}, message = '') => 
 `⚠️ Сообщение от пользователя!
 
-<b>userName:</b> ${user.userName ? '@' + user.userName : '-'} 
-<b>id:</b> ${user.id || '-'}
-<b>firstName:</b> ${user.firstName || '-'}
-<b>lastName:</b> ${user.lastName || '-'}
+<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'} 
+<b>chatId:</b> ${user?.chatId || '-'}
+<b>id:</b> ${user?.id || '-'}
+<b>firstName:</b> ${user?.firstName || '-'}
+<b>lastName:</b> ${user?.lastName || '-'}
 
 <b>Message:</b> 
 ${message}
