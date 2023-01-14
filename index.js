@@ -16,6 +16,10 @@ import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
+const USERS_DEBOUNCE = {};
+
+const isUserDebounced = (chatId = '', delay = TIMEOUTS.text) => USERS_DEBOUNCE[chatId] && (Date.now() - USERS_DEBOUNCE[chatId]) < delay;
+const setUserDebounce = (chatId = '') => USERS_DEBOUNCE[chatId] = Date.now();
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
 const requestUsers = async () => await getUsers() || [];
@@ -124,6 +128,12 @@ const job = new CronJob('0 0 */1 * * *', async function() {
 job.start();
 
 bot.start(async (ctx) => {
+  if (isUserDebounced(ctx.from.id, TIMEOUTS.start)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
@@ -147,6 +157,12 @@ bot.start(async (ctx) => {
 });
 
 bot.action(/unsubscribe (.+)/, async (ctx) => {
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
   
@@ -177,6 +193,12 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
 });
 
 bot.action(/subscribe (.+)/, async (ctx) => {
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
   
@@ -208,6 +230,12 @@ bot.action(/subscribe (.+)/, async (ctx) => {
 });
 
 bot.on('text', async (ctx) => {
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   let currentUser = await requestUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
   
