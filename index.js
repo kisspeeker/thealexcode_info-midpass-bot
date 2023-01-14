@@ -2,7 +2,6 @@ import fs from 'fs';
 import { resolve } from 'path';
 import { Telegraf, Markup } from 'telegraf';
 import { CronJob } from 'cron';
-import { debounce } from 'throttle-debounce';
 
 import {
   BOT_TOKEN,
@@ -124,7 +123,7 @@ const job = new CronJob('0 0 */1 * * *', async function() {
 });
 job.start();
 
-bot.start(debounce(TIMEOUTS.start, async (ctx) => {
+bot.start(async (ctx) => {
   let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
@@ -145,9 +144,9 @@ bot.start(debounce(TIMEOUTS.start, async (ctx) => {
       user: currentUser,
     });
   }
-}));
+});
 
-bot.action(/unsubscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
+bot.action(/unsubscribe (.+)/, async (ctx) => {
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
   
@@ -175,9 +174,9 @@ bot.action(/unsubscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
     message: `${codeUid}`,
   });
   ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
-}));
+});
 
-bot.action(/subscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
+bot.action(/subscribe (.+)/, async (ctx) => {
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
   
@@ -206,9 +205,9 @@ bot.action(/subscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
       message: `codeUid: ${codeUid}`,
     });
   }
-}));
+});
 
-bot.on('text', debounce(TIMEOUTS.text, async (ctx) => {
+bot.on('text', async (ctx) => {
   let currentUser = await requestUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
   
@@ -304,7 +303,7 @@ bot.on('text', debounce(TIMEOUTS.text, async (ctx) => {
     //   message: e || MESSAGES.errorRequestCode,
     // });
   }
-}));
+});
 
 bot.catch((err) => {
   console.error('=== BOT CATCH ===', err);
