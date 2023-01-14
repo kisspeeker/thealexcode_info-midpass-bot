@@ -25,7 +25,7 @@ export const LOGS_TYPES = {
 
 export const TIMEOUTS = {
   start: 2000,
-  text: 2000,
+  text: 1000,
   cronNextUserCode: 2000,
   cronNextUser: 10000,
 }
