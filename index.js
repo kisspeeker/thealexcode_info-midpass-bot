@@ -2,12 +2,14 @@ import fs from 'fs';
 import { resolve } from 'path';
 import { Telegraf, Markup } from 'telegraf';
 import { CronJob } from 'cron';
+import { debounce } from 'throttle-debounce';
 
 import {
   BOT_TOKEN,
   MESSAGES,
   ADMIN_CHAT_ID,
   LOGS_TYPES,
+  TIMEOUTS
 } from './src/constants.js';
 import { getUsers, createUser, updateUser, logMessage } from './src/api.js';
 import User from './src/user.js';
@@ -15,12 +17,11 @@ import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
-let USERS = []
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
-const requestUsers = async () => USERS = await getUsers() || [];
-const getUserByChatId = (chatId) => {
-  const foundUser = USERS.find((user) => user.chatId === String(chatId));
+const requestUsers = async () => await getUsers() || [];
+const requestUserByChatId = async (chatId) => {
+  const foundUser = (await getUsers() || []).find((user) => user.chatId === String(chatId));
   if (foundUser) {
     return new User(foundUser)
   }
@@ -86,10 +87,10 @@ const sendCodeStatusToUser = async (
 
 const job = new CronJob('0 0 */1 * * *', async function() {
   try {
-    await requestUsers();
+    const allUsers = await requestUsers();
 
-    for (let i in USERS) {
-      const currentUser = new User(USERS[i]);
+    for (let i in allUsers) {
+      const currentUser = new User(allUsers[i]);
 
       for (let ii in currentUser.codes) {
         const code = new Code(currentUser.codes[ii]);
@@ -101,16 +102,16 @@ const job = new CronJob('0 0 */1 * * *', async function() {
           
           await updateUser(currentUser);
           await sendCodeStatusToUser(currentUser, code, true, true);
-          await promiseTimeout(1000);
+          await promiseTimeout(TIMEOUTS.cronNextUserCode);
           await logMessage({
             type: LOGS_TYPES.autoUpdateWithChanges,
             user: currentUser,
-            message: `Code with changes: ${newCode.uid}`,
+            message: `codeUid: ${newCode.uid}`,
           });
           await sendMessageToAdmin(`<b>🔥🔥 У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
         }
       }
-      await promiseTimeout(10000);
+      await promiseTimeout(TIMEOUTS.cronNextUser);
     }
   } catch(e) {
     console.error(`<b>Ошибка CronJob:</b> \n${e}`);
@@ -123,8 +124,8 @@ const job = new CronJob('0 0 */1 * * *', async function() {
 });
 job.start();
 
-bot.start(async (ctx) => {
-  let currentUser = getUserByChatId(ctx.from.id);
+bot.start(debounce(TIMEOUTS.start, async (ctx) => {
+  let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
     ctx.reply(MESSAGES.startForUser, {
@@ -132,10 +133,7 @@ bot.start(async (ctx) => {
       ...keyboardDefault(currentUser),
     });
   } else {
-    if (!currentUser) {
-      currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-      await requestUsers();
-    }
+    currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
     ctx.reply(MESSAGES.start, {
       parse_mode: 'HTML',
     });
@@ -147,11 +145,11 @@ bot.start(async (ctx) => {
       user: currentUser,
     });
   }
-});
+}));
 
-bot.action(/unsubscribe (.+)/, async (ctx) => {
+bot.action(/unsubscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
   const codeUid = ctx.match[1];
-  let currentUser = getUserByChatId(ctx.from.id);
+  let currentUser = await requestUserByChatId(ctx.from.id);
   
   if (!currentUser) {
     return;
@@ -159,11 +157,11 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
 
   currentUser.removeUserCode(codeUid);
   await updateUser(currentUser);
-  await requestUsers();
+
   let replyOptions = {
     parse_mode: 'HTML',
   }
-  if (keyboardDefault(currentUser) && keyboardDefault(currentUser).length) {
+  if (keyboardDefault(currentUser) && keyboardDefault(currentUser)?.reply_markup?.keyboard?.length) {
     replyOptions = {
       ...replyOptions,
       ...keyboardDefault(currentUser),
@@ -174,14 +172,14 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
   await logMessage({
     type: LOGS_TYPES.unsubscribeEnable,
     user: currentUser,
-    message: `unsubscribe code: ${codeUid}`,
+    message: `${codeUid}`,
   });
   ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
-});
+}));
 
-bot.action(/subscribe (.+)/, async (ctx) => {
+bot.action(/subscribe (.+)/, debounce(TIMEOUTS.text, async (ctx) => {
   const codeUid = ctx.match[1];
-  let currentUser = getUserByChatId(ctx.from.id);
+  let currentUser = await requestUserByChatId(ctx.from.id);
   
   if (!currentUser) {
     return;
@@ -197,7 +195,6 @@ bot.action(/subscribe (.+)/, async (ctx) => {
   } else {
     currentUser.updateUserCodes(await Code.requestCode(codeUid));
     await updateUser(currentUser);
-    await requestUsers();
     ctx.reply(MESSAGES.subscribeEnable(codeUid), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
@@ -206,18 +203,17 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     await logMessage({
       type: LOGS_TYPES.subscribeEnable,
       user: currentUser,
-      message: `subscribe code: ${codeUid}`,
+      message: `codeUid: ${codeUid}`,
     });
   }
-});
+}));
 
-bot.on('text', async (ctx) => {
-  let currentUser = getUserByChatId(ctx.from.id);
+bot.on('text', debounce(TIMEOUTS.text, async (ctx) => {
+  let currentUser = await requestUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
   
   if (!currentUser) {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    await requestUsers();
   }
 
   try {
@@ -293,7 +289,7 @@ bot.on('text', async (ctx) => {
     await logMessage({
       type: LOGS_TYPES.successCodeStatus,
       user: currentUser,
-      message: `Code: ${newCode?.uid || '-'}`,
+      message: `codeUid: ${newCode?.uid || '-'}`,
     });
     
   } catch(e) {
@@ -308,7 +304,7 @@ bot.on('text', async (ctx) => {
     //   message: e || MESSAGES.errorRequestCode,
     // });
   }
-});
+}));
 
 bot.catch((err) => {
   console.error('=== BOT CATCH ===', err);

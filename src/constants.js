@@ -13,6 +13,22 @@ export const API_KEY = process.env.API_KEY
 export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
 export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
+export const LOGS_TYPES = {
+  error: 'error',
+  successStart: 'successStart',
+  autoUpdateWithChanges: 'autoUpdateWithChanges',
+  subscribeEnable: 'subscribeEnable',
+  unsubscribeEnable: 'unsubscribeEnable',
+  successCodeStatus: 'successCodeStatus',
+  message: 'message',
+}
+
+export const TIMEOUTS = {
+  start: 2000,
+  text: 2000,
+  cronNextUserCode: 2000,
+  cronNextUser: 10000,
+}
 
 export const MESSAGES = {
   start: `
@@ -31,7 +47,7 @@ export const MESSAGES = {
 - отслеживать статус готовности загранпаспорта РФ
 - оповещать об изменениях статуса заявления
 
-Раньше ты уже пользовался моими оповещениями, я отображу их ниже.
+Раньше ты уже пользовался моими оповещениями, я отображу их ниже (если они были).
 Ты можешь ввести номер другого заявления и узнать его статус:
 `,
   subscribeEnable: (uid = '') => `✅ Теперь я буду уведомлять тебя об изменениях статуса заявления <b>${uid}</b>.`,
@@ -73,14 +89,4 @@ ${message}
 `,
   errorValidateCode: '❌ Некорректный формат номера заявления. Проверь правильность номера заявления и попробуй ещё раз.',
   errorRequestCode: '❌ Ошибка получения информации о заявлении с сервера МИД РФ. Проверь правильность номера заявления и попробуй ещё раз.',
-}
-
-export const LOGS_TYPES = {
-  error: 'error',
-  successStart: 'successStart',
-  autoUpdateWithChanges: 'autoUpdateWithChanges',
-  subscribeEnable: 'subscribeEnable',
-  unsubscribeEnable: 'unsubscribeEnable',
-  successCodeStatus: 'successCodeStatus',
-  message: 'message',
 }

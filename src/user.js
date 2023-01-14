@@ -19,7 +19,9 @@ export default class User {
     this.userName = username || userName;
     this.codes = Array.isArray(codes) ? codes : [];
 
-    if (!isNew) {
+    if (isNew) {
+      this.chatId = String(id);
+    } else {
       this.id = id;
     }
   }
