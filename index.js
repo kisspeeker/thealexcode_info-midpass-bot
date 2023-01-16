@@ -24,7 +24,7 @@ const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
 const requestUsers = async () => await getUsers() || [];
 const requestUserByChatId = async (chatId) => {
-  const foundUser = (await getUsers() || []).find((user) => user.chatId === String(chatId));
+  const foundUser = (await getUsers() || []).find((user) => String(user.chatId) === String(chatId));
   if (foundUser) {
     return new User(foundUser)
   }
@@ -261,6 +261,7 @@ bot.on('text', async (ctx) => {
       
       await bot.telegram.sendMessage(userId, messageToUser, {
         parse_mode: 'HTML',
+        disable_notification: true
       });
       await sendMessageToAdmin(`Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`);
       return;
@@ -321,15 +322,15 @@ bot.on('text', async (ctx) => {
     
   } catch(e) {
     console.error(e);
-    // ctx.reply(e || MESSAGES.errorRequestCode, {
-    //   parse_mode: 'HTML',
-    //   ...keyboardDefault(currentUser),
-    // });
-    // await logMessage({
-    //   type: LOGS_TYPES.error,
-    //   user: currentUser,
-    //   message: e || MESSAGES.errorRequestCode,
-    // });
+    ctx.reply(e || MESSAGES.errorRequestCode, {
+      parse_mode: 'HTML',
+      ...keyboardDefault(currentUser),
+    });
+    await logMessage({
+      type: LOGS_TYPES.error,
+      user: currentUser,
+      message: e || MESSAGES.errorRequestCode,
+    });
   }
 });
 
