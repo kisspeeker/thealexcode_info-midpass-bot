@@ -258,12 +258,18 @@ bot.on('text', async (ctx) => {
     if (isAdmin(ctx) && text.startsWith('написать')) {
       const userId = text.split(' ')[1];
       const messageToUser = text.split(' ').slice(2).join(' ');
+
+      try {
+        await bot.telegram.sendMessage(userId, messageToUser, {
+          parse_mode: 'HTML',
+          disable_notification: true
+        });
+        await sendMessageToAdmin(MESSAGES.successSendToUser(userId, messageToUser));
+      } catch(e) {
+        console.error(e);
+        await sendMessageToAdmin(MESSAGES.errorSendToUser(userId, e));
+      }
       
-      await bot.telegram.sendMessage(userId, messageToUser, {
-        parse_mode: 'HTML',
-        disable_notification: true
-      });
-      await sendMessageToAdmin(`Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`);
       return;
     }
 
