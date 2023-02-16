@@ -111,7 +111,7 @@ const job = new CronJob('0 0 */1 * * *', async function() {
             user: currentUser,
             message: `codeUid: ${newCode.uid}`,
           });
-          await sendMessageToAdmin(`<b>🔥🔥 У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
+          await sendMessageToAdmin(`<b>ℹ️ У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
         }
       }
       await promiseTimeout(TIMEOUTS.cronNextUser);
