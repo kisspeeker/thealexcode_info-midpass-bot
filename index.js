@@ -65,9 +65,9 @@ const keyboardInlineUnsubscribe = (currentUser) => {
   return res.length ? Markup.inlineKeyboard(res).resize() : [];
 };
 const sendCodeStatusToUser = async (
-  currentUser = {}, 
-  newCode = {}, 
-  needHideKeyboard = false, 
+  currentUser = {},
+  newCode = {},
+  needHideKeyboard = false,
   hasChanges = false
 ) => {
   const statusImage = getStatusImage(newCode);
@@ -102,7 +102,7 @@ const job = new CronJob('0 0 */1 * * *', async function() {
 
         if (hasChanges) {
           currentUser.updateUserCodes(newCode);
-          
+
           await updateUser(currentUser);
           await sendCodeStatusToUser(currentUser, newCode, true, true);
           await promiseTimeout(TIMEOUTS.cronNextUserCode);
@@ -165,7 +165,7 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
 
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
-  
+
   if (!currentUser) {
     return;
   }
@@ -201,7 +201,7 @@ bot.action(/subscribe (.+)/, async (ctx) => {
 
   const codeUid = ctx.match[1];
   let currentUser = await requestUserByChatId(ctx.from.id);
-  
+
   if (!currentUser) {
     return;
   }
@@ -238,7 +238,7 @@ bot.on('text', async (ctx) => {
 
   let currentUser = await requestUserByChatId(ctx.from.id);
   let isUpdatingCode = false;
-  
+
   if (!currentUser) {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
   }
@@ -269,7 +269,7 @@ bot.on('text', async (ctx) => {
         console.error(e);
         await sendMessageToAdmin(MESSAGES.errorSendToUser(userId, e));
       }
-      
+
       return;
     }
 
@@ -325,7 +325,7 @@ bot.on('text', async (ctx) => {
       user: currentUser,
       message: `codeUid: ${newCode?.uid || '-'}`,
     });
-    
+
   } catch(e) {
     console.error(e);
     ctx.reply(e || MESSAGES.errorRequestCode, {
