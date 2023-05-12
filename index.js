@@ -8,6 +8,7 @@ import {
   MESSAGES,
   ADMIN_CHAT_ID,
   LOGS_TYPES,
+  TIMEOUTS
 } from './src/constants.js';
 import { getUsers, createUser, updateUser, logMessage } from './src/api.js';
 import User from './src/user.js';
@@ -15,12 +16,15 @@ import Code from './src/code.js';
 
 const bot = new Telegraf(BOT_TOKEN);
 
-let USERS = []
+const USERS_DEBOUNCE = {};
+
+const isUserDebounced = (chatId = '', delay = TIMEOUTS.text) => USERS_DEBOUNCE[chatId] && (Date.now() - USERS_DEBOUNCE[chatId]) < delay;
+const setUserDebounce = (chatId = '') => USERS_DEBOUNCE[chatId] = Date.now();
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
-const requestUsers = async () => USERS = await getUsers() || [];
-const getUserByChatId = (chatId) => {
-  const foundUser = USERS.find((user) => user.chatId === String(chatId));
+const requestUsers = async () => await getUsers() || [];
+const requestUserByChatId = async (chatId) => {
+  const foundUser = (await getUsers() || []).find((user) => String(user.chatId) === String(chatId));
   if (foundUser) {
     return new User(foundUser)
   }
@@ -84,12 +88,12 @@ const sendCodeStatusToUser = async (
   }
 };
 
-const job = new CronJob('*/30 * * * * *', async function() {
+const job = new CronJob('0 0 */1 * * *', async function() {
   try {
-    await requestUsers();
+    const allUsers = await requestUsers();
 
-    for (let i in USERS) {
-      const currentUser = new User(USERS[i]);
+    for (let i in allUsers) {
+      const currentUser = new User(allUsers[i]);
 
       for (let ii in currentUser.codes) {
         const code = new Code(currentUser.codes[ii]);
@@ -100,31 +104,37 @@ const job = new CronJob('*/30 * * * * *', async function() {
           currentUser.updateUserCodes(newCode);
           
           await updateUser(currentUser);
-          await sendCodeStatusToUser(currentUser, code, true, true);
-          await promiseTimeout(1000);
+          await sendCodeStatusToUser(currentUser, newCode, true, true);
+          await promiseTimeout(TIMEOUTS.cronNextUserCode);
           await logMessage({
             type: LOGS_TYPES.autoUpdateWithChanges,
             user: currentUser,
-            message: `Code with changes: ${newCode.uid}`,
+            message: `codeUid: ${newCode.uid}`,
           });
-          await sendMessageToAdmin(`<b>🔥🔥 У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
+          await sendMessageToAdmin(`<b>ℹ️ У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
         }
       }
-      await promiseTimeout(10000);
+      await promiseTimeout(TIMEOUTS.cronNextUser);
     }
   } catch(e) {
-    console.error(e);
-    await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
-    await logMessage({
-      type: LOGS_TYPES.error,
-      message: `Ошибка CronJob: ${e}`,
-    });
+    console.error(`<b>Ошибка CronJob:</b> \n${e}`);
+    // await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
+    // await logMessage({
+    //   type: LOGS_TYPES.error,
+    //   message: `Ошибка CronJob: ${e}`,
+    // });
   }
 });
 job.start();
 
 bot.start(async (ctx) => {
-  let currentUser = getUserByChatId(ctx.from.id);
+  if (isUserDebounced(ctx.from.id, TIMEOUTS.start)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
+  let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
     ctx.reply(MESSAGES.startForUser, {
@@ -132,10 +142,7 @@ bot.start(async (ctx) => {
       ...keyboardDefault(currentUser),
     });
   } else {
-    if (!currentUser) {
-      currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-      await requestUsers();
-    }
+    currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
     ctx.reply(MESSAGES.start, {
       parse_mode: 'HTML',
     });
@@ -150,8 +157,14 @@ bot.start(async (ctx) => {
 });
 
 bot.action(/unsubscribe (.+)/, async (ctx) => {
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   const codeUid = ctx.match[1];
-  let currentUser = getUserByChatId(ctx.from.id);
+  let currentUser = await requestUserByChatId(ctx.from.id);
   
   if (!currentUser) {
     return;
@@ -159,11 +172,11 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
 
   currentUser.removeUserCode(codeUid);
   await updateUser(currentUser);
-  await requestUsers();
+
   let replyOptions = {
     parse_mode: 'HTML',
   }
-  if (keyboardDefault(currentUser) && keyboardDefault(currentUser).length) {
+  if (keyboardDefault(currentUser) && keyboardDefault(currentUser)?.reply_markup?.keyboard?.length) {
     replyOptions = {
       ...replyOptions,
       ...keyboardDefault(currentUser),
@@ -174,14 +187,20 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
   await logMessage({
     type: LOGS_TYPES.unsubscribeEnable,
     user: currentUser,
-    message: `unsubscribe code: ${codeUid}`,
+    message: `${codeUid}`,
   });
   ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
 });
 
 bot.action(/subscribe (.+)/, async (ctx) => {
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
+
   const codeUid = ctx.match[1];
-  let currentUser = getUserByChatId(ctx.from.id);
+  let currentUser = await requestUserByChatId(ctx.from.id);
   
   if (!currentUser) {
     return;
@@ -197,7 +216,6 @@ bot.action(/subscribe (.+)/, async (ctx) => {
   } else {
     currentUser.updateUserCodes(await Code.requestCode(codeUid));
     await updateUser(currentUser);
-    await requestUsers();
     ctx.reply(MESSAGES.subscribeEnable(codeUid), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
@@ -206,18 +224,23 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     await logMessage({
       type: LOGS_TYPES.subscribeEnable,
       user: currentUser,
-      message: `subscribe code: ${codeUid}`,
+      message: `codeUid: ${codeUid}`,
     });
   }
 });
 
 bot.on('text', async (ctx) => {
-  let currentUser = getUserByChatId(ctx.from.id);
-  let isUpdatingCode = false;
+  if (isUserDebounced(ctx.from.id)) {
+    setUserDebounce(ctx.from.id);
+    return;
+  }
+  setUserDebounce(ctx.from.id);
 
+  let currentUser = await requestUserByChatId(ctx.from.id);
+  let isUpdatingCode = false;
+  
   if (!currentUser) {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    await requestUsers();
   }
 
   try {
@@ -236,10 +259,17 @@ bot.on('text', async (ctx) => {
       const userId = text.split(' ')[1];
       const messageToUser = text.split(' ').slice(2).join(' ');
 
-      bot.telegram.sendMessage(userId, messageToUser, {
-        parse_mode: 'HTML',
-      });
-      await sendMessageToAdmin(`Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`);
+      try {
+        await bot.telegram.sendMessage(userId, messageToUser, {
+          parse_mode: 'HTML',
+          disable_notification: true
+        });
+        await sendMessageToAdmin(MESSAGES.successSendToUser(userId, messageToUser));
+      } catch(e) {
+        console.error(e);
+        await sendMessageToAdmin(MESSAGES.errorSendToUser(userId, e));
+      }
+      
       return;
     }
 
@@ -287,14 +317,17 @@ bot.on('text', async (ctx) => {
       currentUser.updateUserCodes(newCode);
     }
 
-    await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
+    if (newCode) {
+      await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
+    }
     await logMessage({
       type: LOGS_TYPES.successCodeStatus,
       user: currentUser,
-      message: `Code: ${newCode.uid}`,
+      message: `codeUid: ${newCode?.uid || '-'}`,
     });
     
   } catch(e) {
+    console.error(e);
     ctx.reply(e || MESSAGES.errorRequestCode, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),

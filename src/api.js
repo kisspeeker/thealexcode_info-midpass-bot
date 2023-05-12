@@ -28,7 +28,7 @@ export const logMessage = async (data = {}) => {
 
 export const getUsers = async () => {
   try {
-    const res = (await axiosInstance.get(`${API_ROUTE_USERS}?populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*`)).data
+    const res = (await axiosInstance.get(`${API_ROUTE_USERS}?populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*&pagination[limit]=-1`)).data
     return res;
   } catch(e) {
     console.error('ERROR at api.getUsers', e?.response?.data);
