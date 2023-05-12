@@ -1,10 +1,16 @@
 import axios from 'axios'
 import { API_KEY, API_ROUTE_LOGS, API_ROUTE_USERS } from './constants.js';
 
+const userAgents = [
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+]
+
 export const axiosInstance = axios.create({
   headers: {
     Accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`
+    Authorization: `Bearer ${API_KEY}`,
+    'user-agent': userAgents[Math.floor(Math.random()*userAgents.length)]
   },
 });
 
