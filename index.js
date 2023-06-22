@@ -117,8 +117,8 @@ const job = new CronJob('0 0 */1 * * *', async function() {
       await promiseTimeout(TIMEOUTS.cronNextUser);
     }
   } catch(e) {
-    console.error(`<b>Ошибка CronJob:</b> \n${e}`);
-    // await sendMessageToAdmin(`<b>Ошибка CronJob:</b> \n${e}`);
+    console.error(MESSAGES.errorCronJob(e));
+    await sendMessageToAdmin(MESSAGES.errorCronJob(e));
     // await logMessage({
     //   type: LOGS_TYPES.error,
     //   message: `Ошибка CronJob: ${e}`,
@@ -337,6 +337,7 @@ bot.on('text', async (ctx) => {
       user: currentUser,
       message: e || MESSAGES.errorRequestCode,
     });
+    await sendMessageToAdmin(MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text));
   }
 });
 
