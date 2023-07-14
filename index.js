@@ -87,12 +87,26 @@ const sendCodeStatusToUser = async (
     });
   }
 };
+const clearBlockedUser = async (e = {}) => {
+  if (e && e.response && e.response.error_code && e.on && e.on.payload && e.on.payload.chat_id) {
+    let currentUser = await requestUserByChatId(e.on.payload.chat_id);
 
-const job = new CronJob('0 0 */1 * * *', async function() {
+    if (!currentUser) {
+      return;
+    }
+
+    currentUser.removeAllUserCodes();
+    await updateUser(currentUser);
+    await sendMessageToAdmin(MESSAGES.errorBlockByUser(currentUser));
+  }
+}
+
+const job = new CronJob('0 0 */3 * * *', async function() {
   try {
     const allUsers = await requestUsers();
+    const filteredUsers = allUsers.filter(users => Array.isArray(users.codes) && users.codes.length);
 
-    for (let i in allUsers) {
+    for (let i in filteredUsers) {
       const currentUser = new User(allUsers[i]);
 
       for (let ii in currentUser.codes) {
@@ -119,6 +133,8 @@ const job = new CronJob('0 0 */1 * * *', async function() {
   } catch(e) {
     console.error(MESSAGES.errorCronJob(e));
     await sendMessageToAdmin(MESSAGES.errorCronJob(e));
+    await clearBlockedUser(e)
+
     // await logMessage({
     //   type: LOGS_TYPES.error,
     //   message: `Ошибка CronJob: ${e}`,

@@ -1,15 +1,15 @@
 import Code from './code.js';
 
 export default class User {
-  constructor({ 
-    id, 
-    chatId, 
+  constructor({
+    id,
+    chatId,
     first_name,
     firstName,
     last_name,
     lastName,
-    username, 
-    userName, 
+    username,
+    userName,
     codes,
     isNew
   }) {
@@ -48,5 +48,9 @@ export default class User {
 
   removeUserCode(uid = '') {
     this.codes = (this.codes || []).filter((code) => code.uid !== uid);
+  }
+
+  removeAllUserCodes() {
+    this.codes = [];
   }
 }

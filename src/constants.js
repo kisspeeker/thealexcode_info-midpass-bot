@@ -24,10 +24,10 @@ export const LOGS_TYPES = {
 }
 
 export const TIMEOUTS = {
-  start: 2000,
-  text: 1000,
-  cronNextUserCode: 2000,
-  cronNextUser: 10000,
+  start: 1000 * 2,
+  text: 1000 * 4,
+  cronNextUserCode: 1000 * 60 * 5,
+  cronNextUser: 1000 * 60 * 10,
 }
 
 export const MESSAGES = {
@@ -120,4 +120,13 @@ ${message}
   successSendToUser: (userId, messageToUser) => `✅ Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`,
   errorSendToUser: (userId, e) => `❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: \n\n${e?.code}: ${e?.description}`,
   errorCronJob: (e) => `❌ Ошибка CronJob: ${e}`,
+  errorBlockByUser: (user = {}, message = '') => `
+❌ Bot was blocked by the user. Он больше не выпадает в выдаче, его коды удалены
+
+<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
+<b>chatId:</b> ${user?.chatId || '-'}
+<b>id:</b> ${user?.id || '-'}
+<b>firstName:</b> ${user?.firstName || '-'}
+<b>lastName:</b> ${user?.lastName || '-'}
+`,
 }
