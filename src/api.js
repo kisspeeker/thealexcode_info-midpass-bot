@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { API_KEY, API_ROUTE_LOGS, API_ROUTE_USERS } from './constants.js';
+import { API_KEY, API_ROUTE_LOGS, API_ROUTE_USERS, TIMEOUTS } from './constants.js';
 
 const userAgents = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
@@ -26,14 +26,37 @@ export const logMessage = async (data = {}) => {
   }
 }
 
+// export const getUsers = async () => {
+//   try {
+//     const res = (await axiosInstance.get(`${API_ROUTE_USERS}?populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*&pagination[limit]=-1`)).data
+//     console.warn(res);
+//     return res;
+//   } catch(e) {
+//     console.error('ERROR at api.getUsers', e?.response?.data);
+//     return [];
+//   }
+// }
+
 export const getUsers = async () => {
-  try {
-    const res = (await axiosInstance.get(`${API_ROUTE_USERS}?populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*&pagination[limit]=-1`)).data
-    return res;
-  } catch(e) {
-    console.error('ERROR at api.getUsers', e?.response?.data);
-    return [];
+  const pageSize = 100;
+
+  let allValues = [];
+  let page = 1;
+
+  while (page) {
+    try {
+      const res = (await axiosInstance.get(`${API_ROUTE_USERS}?pagination[page]=${page}&pagination[pageSize]=${pageSize}&populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*`)).data
+      const pageCount = res?.meta?.pagination?.pageCount || page;
+      allValues = allValues.concat(res.values);
+      await new Promise(resolve => setTimeout(resolve, TIMEOUTS.getUsers));
+      page = pageCount > page ? page + 1 : 0;
+    } catch (e) {
+      console.error('ERROR at api.getUsers', e?.response?.data);
+      break;
+    }
   }
+
+  return allValues;
 }
 
 export const createUser = async (user = {}) => {

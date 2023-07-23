@@ -101,7 +101,7 @@ const clearBlockedUser = async (e = {}) => {
   }
 }
 
-const job = new CronJob('0 0 */3 * * *', async function() {
+const job = new CronJob('0 0 */4 * * *', async function() {
   try {
     const allUsers = await requestUsers();
     const filteredUsers = allUsers.filter(users => Array.isArray(users.codes) && users.codes.length);
