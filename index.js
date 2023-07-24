@@ -87,7 +87,7 @@ const sendCodeStatusToUser = async (
     });
   }
 };
-const clearBlockedUser = async (e = {}) => {
+const removeCodesOfBlockedUser = async (e = {}) => {
   if (e && e.response && e.response.error_code && e.on && e.on.payload && e.on.payload.chat_id) {
     let currentUser = await requestUserByChatId(e.on.payload.chat_id);
 
@@ -126,16 +126,16 @@ const job = new CronJob('0 0 */4 * * *', async function() {
               user: currentUser,
               message: `codeUid: ${newCode.uid}`,
             });
-            await sendMessageToAdmin(`<b>ℹ️ У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
+            await sendMessageToAdmin(MESSAGES.userCodeHasChanges(currentUser, newCode));
           }
         } catch(ee) {
-          console.error(MESSAGES.errorCronJob(`USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`));
-          await sendMessageToAdmin(MESSAGES.errorCronJob(`USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`));
-          await clearBlockedUser(ee);
+          console.error(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
+          await sendMessageToAdmin(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
+          await removeCodesOfBlockedUser(ee);
           await logMessage({
             type: LOGS_TYPES.error,
             user: currentUser,
-            message: `USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`,
+            message: MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]),
           });
           continue;
         }
@@ -143,11 +143,11 @@ const job = new CronJob('0 0 */4 * * *', async function() {
       await promiseTimeout(TIMEOUTS.cronNextUser);
     }
   } catch(e) {
-    console.error(MESSAGES.errorCronJob('ROOT errorCronJob: ' + e));
-    await sendMessageToAdmin(MESSAGES.errorCronJob('ROOT errorCronJob: ' + e));
+    console.error(MESSAGES.errorCronJob(e, 'ROOT'));
+    await sendMessageToAdmin(MESSAGES.errorCronJob(e, 'ROOT'));
     await logMessage({
       type: LOGS_TYPES.error,
-      message: `ROOT errorCronJob: ${e}`,
+      message: MESSAGES.errorCronJob(e, 'ROOT'),
     });
   }
 });
@@ -292,7 +292,7 @@ bot.on('text', async (ctx) => {
         });
         await sendMessageToAdmin(MESSAGES.successSendToUser(userId, messageToUser));
       } catch(e) {
-        console.error(e);
+        console.error(MESSAGES.errorSendToUser(userId, e));
         await sendMessageToAdmin(MESSAGES.errorSendToUser(userId, e));
       }
 
@@ -353,7 +353,7 @@ bot.on('text', async (ctx) => {
     });
 
   } catch(e) {
-    console.error(e);
+    console.error(MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text));
     ctx.reply(e || MESSAGES.errorRequestCode, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
@@ -361,7 +361,7 @@ bot.on('text', async (ctx) => {
     await logMessage({
       type: LOGS_TYPES.error,
       user: currentUser,
-      message: e || MESSAGES.errorRequestCode,
+      message: MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text),
     });
     await sendMessageToAdmin(MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text));
   }

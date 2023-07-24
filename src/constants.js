@@ -60,6 +60,12 @@ export const MESSAGES = {
   unsubscribe: 'Выберите заявление, которое нужно перестать отслеживать:',
   unsubscribeEnable: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
   codeHasChanges: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
+  userCodeHasChanges: (user = {}, code = {}) => `
+<b>ℹ️ У пользователя изменился статус заявления!</b>
+
+<b>User:</b> ${user.chatId || user.id || user.userName}
+<b>Code:</b> ${code.uid}
+`,
   codeStatus: (code = {}) =>
 `<b>#️⃣ Номер заявления:</b> ${code?.uid || '-'}
 
@@ -119,8 +125,15 @@ ${message}
 <b>Сообщение</b> ${message}
 `,
   successSendToUser: (userId, messageToUser) => `✅ Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`,
-  errorSendToUser: (userId, e) => `❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: \n\n${e?.code}: ${e?.description}`,
-  errorCronJob: (e) => `❌ Ошибка CronJob: ${e}`,
+  errorSendToUser: (userId, e) => `❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: \n\n${e?.code || '-'}: ${e?.description || '-'}`,
+  errorCronJob: (e, type = '-', obj = {}) => `
+❌ Ошибка CronJob (${type}):
+
+${e}
+
+Additional data:
+${JSON.stringify(obj)}
+`,
   errorBlockByUser: (user = {}, message = '') => `
 ❌ Bot was blocked by the user. Он больше не выпадает в выдаче, его коды удалены
 
