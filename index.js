@@ -104,41 +104,51 @@ const clearBlockedUser = async (e = {}) => {
 const job = new CronJob('0 0 */4 * * *', async function() {
   try {
     const allUsers = await requestUsers();
-    const filteredUsers = allUsers.filter(users => Array.isArray(users.codes) && users.codes.length);
+    const filteredUsers = allUsers.filter(user => Array.isArray(user.codes) && user.codes.length);
 
     for (let i in filteredUsers) {
-      const currentUser = new User(allUsers[i]);
+      const currentUser = new User(filteredUsers[i]);
 
       for (let ii in currentUser.codes) {
-        const code = new Code(currentUser.codes[ii]);
-        const newCode = await Code.requestCode(code.uid);
-        const hasChanges = code.hasChangesWith(newCode);
+        try {
+          const code = new Code(currentUser.codes[ii]);
+          const newCode = await Code.requestCode(code.uid);
+          const hasChanges = code.hasChangesWith(newCode);
 
-        if (hasChanges) {
-          currentUser.updateUserCodes(newCode);
+          if (hasChanges) {
+            currentUser.updateUserCodes(newCode);
 
-          await updateUser(currentUser);
-          await sendCodeStatusToUser(currentUser, newCode, true, true);
-          await promiseTimeout(TIMEOUTS.cronNextUserCode);
+            await updateUser(currentUser);
+            await sendCodeStatusToUser(currentUser, newCode, true, true);
+            await promiseTimeout(TIMEOUTS.cronNextUserCode);
+            await logMessage({
+              type: LOGS_TYPES.autoUpdateWithChanges,
+              user: currentUser,
+              message: `codeUid: ${newCode.uid}`,
+            });
+            await sendMessageToAdmin(`<b>ℹ️ У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
+          }
+        } catch(ee) {
+          console.error(MESSAGES.errorCronJob(`USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`));
+          await sendMessageToAdmin(MESSAGES.errorCronJob(`USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`));
+          await clearBlockedUser(ee);
           await logMessage({
-            type: LOGS_TYPES.autoUpdateWithChanges,
+            type: LOGS_TYPES.error,
             user: currentUser,
-            message: `codeUid: ${newCode.uid}`,
+            message: `USERCODE errorCronJob: ${ee} /n Code: ${currentUser.codes[ii]}`,
           });
-          await sendMessageToAdmin(`<b>ℹ️ У пользователя изменился статус заявления!</b> \n\n<b>User:</b> ${currentUser.chatId || currentUser.id || currentUser.userName} \n<b>Code:</b> ${newCode.uid}`);
+          continue;
         }
       }
       await promiseTimeout(TIMEOUTS.cronNextUser);
     }
   } catch(e) {
-    console.error(MESSAGES.errorCronJob(e));
-    await sendMessageToAdmin(MESSAGES.errorCronJob(e));
-    await clearBlockedUser(e)
-
-    // await logMessage({
-    //   type: LOGS_TYPES.error,
-    //   message: `Ошибка CronJob: ${e}`,
-    // });
+    console.error(MESSAGES.errorCronJob('ROOT errorCronJob: ' + e));
+    await sendMessageToAdmin(MESSAGES.errorCronJob('ROOT errorCronJob: ' + e));
+    await logMessage({
+      type: LOGS_TYPES.error,
+      message: `ROOT errorCronJob: ${e}`,
+    });
   }
 });
 job.start();
