@@ -1,16 +1,21 @@
 import axios from 'axios'
-import { API_KEY, API_ROUTE_LOGS, API_ROUTE_USERS, TIMEOUTS } from './constants.js';
-
-const userAgents = [
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
-]
+import {
+  API_KEY,
+  API_ROUTE_MIDPASS,
+  API_ROUTE_LOGS,
+  API_ROUTE_USERS,
+  API_USER_AGENTS,
+  TIMEOUTS,
+  MESSAGES,
+  DEBUG
+} from './constants.js';
+import Code from './code.js'
 
 export const axiosInstance = axios.create({
   headers: {
     Accept: 'application/json',
     Authorization: `Bearer ${API_KEY}`,
-    'user-agent': userAgents[Math.floor(Math.random()*userAgents.length)]
+    'user-agent': API_USER_AGENTS[Math.floor(Math.random()*API_USER_AGENTS.length)]
   },
 });
 
@@ -19,10 +24,26 @@ export const logMessage = async (data = {}) => {
     await axiosInstance.post(API_ROUTE_LOGS, {
       type: String(data?.type || '-'),
       user: String(data?.user?.chatId || data?.user?.id || data?.user?.userName || '-'),
-      message: String(data?.message || '-'),
+      message: `${String(data?.message || '-')}
+
+META<<<${JSON.stringify(data?.meta || {})}>>>META
+`,
     });
   } catch(e) {
     console.error('ERROR IN LOGSMESSAGE', e?.response?.data);
+  }
+}
+
+export const getCodeFromMidpass = async (uid = '') => {
+  try {
+    const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
+
+    if (!newCode) {
+      throw MESSAGES.errorRequestCode;
+    }
+    return new Code(newCode)
+  } catch(e) {
+    throw MESSAGES.errorRequestCode;
   }
 }
 

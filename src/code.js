@@ -1,5 +1,4 @@
-import { API_ROUTE_MIDPASS, MESSAGES, DEBUG } from './constants.js';
-import { axiosInstance } from './api.js';
+import { MESSAGES } from './constants.js';
 
 const shortUidLength = 6;
 
@@ -33,19 +32,6 @@ export default class Code {
 
   static isShortValid(shortUid = '') {
     return shortUid && String(shortUid).length === shortUidLength + 1;
-  }
-
-  static async requestCode(uid = '') {
-    try {
-      const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
-
-      if (!newCode) {
-        throw MESSAGES.errorRequestCode;
-      }
-      return new Code(newCode)
-    } catch(e) {
-      throw MESSAGES.errorRequestCode;
-    }
   }
 
   hasChangesWith(code = {}) {

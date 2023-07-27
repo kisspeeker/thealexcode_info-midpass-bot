@@ -15,6 +15,8 @@ export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
 export const LOGS_TYPES = {
   error: 'error',
+  errorCronJobRoot: 'errorCronJobRoot',
+  errorCronJobUserCode: 'errorCronJobUserCode',
   successStart: 'successStart',
   autoUpdateWithChanges: 'autoUpdateWithChanges',
   subscribeEnable: 'subscribeEnable',
@@ -30,6 +32,11 @@ export const TIMEOUTS = {
   cronNextUser: 1000 * 45,
   getUsers: 100,
 }
+
+export const API_USER_AGENTS = [
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+]
 
 export const MESSAGES = {
   start: `
@@ -60,12 +67,14 @@ export const MESSAGES = {
   unsubscribe: 'Выберите заявление, которое нужно перестать отслеживать:',
   unsubscribeEnable: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
   codeHasChanges: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
-  userCodeHasChanges: (user = {}, code = {}) => `
+  userCodeHasChanges(user = {}, code = {}) {
+    return `
 <b>ℹ️ У пользователя изменился статус заявления!</b>
 
 <b>User:</b> ${user.chatId || user.id || user.userName}
-<b>Code:</b> ${code.uid}
-`,
+${this.codeStatus(code)}
+`
+  },
   codeStatus: (code = {}) =>
 `<b>#️⃣ Номер заявления:</b> ${code?.uid || '-'}
 

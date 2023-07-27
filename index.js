@@ -10,7 +10,13 @@ import {
   LOGS_TYPES,
   TIMEOUTS
 } from './src/constants.js';
-import { getUsers, createUser, updateUser, logMessage } from './src/api.js';
+import {
+  getCodeFromMidpass,
+  getUsers,
+  createUser,
+  updateUser,
+  logMessage
+} from './src/api.js';
 import User from './src/user.js';
 import Code from './src/code.js';
 
@@ -22,9 +28,8 @@ const isUserDebounced = (chatId = '', delay = TIMEOUTS.text) => USERS_DEBOUNCE[c
 const setUserDebounce = (chatId = '') => USERS_DEBOUNCE[chatId] = Date.now();
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
-const requestUsers = async () => await getUsers() || [];
 const requestUserByChatId = async (chatId) => {
-  const foundUser = (await getUsers() || []).find((user) => String(user.chatId) === String(chatId));
+  const foundUser = (await getUsers()).find((user) => String(user.chatId) === String(chatId));
   if (foundUser) {
     return new User(foundUser)
   }
@@ -103,7 +108,7 @@ const removeCodesOfBlockedUser = async (e = {}) => {
 
 const job = new CronJob('0 0 */4 * * *', async function() {
   try {
-    const allUsers = await requestUsers();
+    const allUsers = await getUsers();
     const filteredUsers = allUsers.filter(user => Array.isArray(user.codes) && user.codes.length);
 
     for (let i in filteredUsers) {
@@ -112,7 +117,7 @@ const job = new CronJob('0 0 */4 * * *', async function() {
       for (let ii in currentUser.codes) {
         try {
           const code = new Code(currentUser.codes[ii]);
-          const newCode = await Code.requestCode(code.uid);
+          const newCode = await getCodeFromMidpass(code.uid);
           const hasChanges = code.hasChangesWith(newCode);
 
           if (hasChanges) {
@@ -125,6 +130,9 @@ const job = new CronJob('0 0 */4 * * *', async function() {
               type: LOGS_TYPES.autoUpdateWithChanges,
               user: currentUser,
               message: `codeUid: ${newCode.uid}`,
+              meta: {
+                'CODE': newCode
+              }
             });
             await sendMessageToAdmin(MESSAGES.userCodeHasChanges(currentUser, newCode));
           }
@@ -133,9 +141,12 @@ const job = new CronJob('0 0 */4 * * *', async function() {
           await sendMessageToAdmin(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
           await removeCodesOfBlockedUser(ee);
           await logMessage({
-            type: LOGS_TYPES.error,
+            type: LOGS_TYPES.errorCronJobUserCode,
             user: currentUser,
-            message: MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]),
+            message: MESSAGES.errorCronJob(ee, 'USERCODE'),
+            meta: {
+              'CODE_UID': currentUser.codes[ii]
+            }
           });
           continue;
         }
@@ -146,7 +157,7 @@ const job = new CronJob('0 0 */4 * * *', async function() {
     console.error(MESSAGES.errorCronJob(e, 'ROOT'));
     await sendMessageToAdmin(MESSAGES.errorCronJob(e, 'ROOT'));
     await logMessage({
-      type: LOGS_TYPES.error,
+      type: LOGS_TYPES.errorCronJobRoot,
       message: MESSAGES.errorCronJob(e, 'ROOT'),
     });
   }
@@ -214,6 +225,9 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
     type: LOGS_TYPES.unsubscribeEnable,
     user: currentUser,
     message: `${codeUid}`,
+    meta: {
+      'CODE_UID': codeUid
+    }
   });
   ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
 });
@@ -240,7 +254,7 @@ bot.action(/subscribe (.+)/, async (ctx) => {
       ...keyboardDefault(currentUser),
     });
   } else {
-    currentUser.updateUserCodes(await Code.requestCode(codeUid));
+    currentUser.updateUserCodes(await getCodeFromMidpass(codeUid));
     await updateUser(currentUser);
     ctx.reply(MESSAGES.subscribeEnable(codeUid), {
       parse_mode: 'HTML',
@@ -251,6 +265,9 @@ bot.action(/subscribe (.+)/, async (ctx) => {
       type: LOGS_TYPES.subscribeEnable,
       user: currentUser,
       message: `codeUid: ${codeUid}`,
+      meta: {
+        'CODE_UID': codeUid
+      }
     });
   }
 });
@@ -337,7 +354,7 @@ bot.on('text', async (ctx) => {
       return
     }
 
-    const newCode = await Code.requestCode(codeUid);
+    const newCode = await getCodeFromMidpass(codeUid);
 
     if (isUpdatingCode && currentUser) {
       currentUser.updateUserCodes(newCode);
@@ -350,6 +367,9 @@ bot.on('text', async (ctx) => {
       type: LOGS_TYPES.successCodeStatus,
       user: currentUser,
       message: `codeUid: ${newCode?.uid || '-'}`,
+      meta: {
+        'CODE': newCode
+      }
     });
 
   } catch(e) {
@@ -371,7 +391,7 @@ bot.catch((err) => {
   console.error('=== BOT CATCH ===', err);
 });
 
-requestUsers().then(() => {
+getUsers().then(() => {
   bot.launch();
   console.warn('BOT STARTED');
 })
