@@ -8,11 +8,13 @@ import {
   MESSAGES,
   ADMIN_CHAT_ID,
   LOGS_TYPES,
-  TIMEOUTS
+  TIMEOUTS,
+  START_CRON_JOB_IMMEDIATELY
 } from './src/constants.js';
 import {
   getCodeFromMidpass,
-  getUsers,
+  getUserByChatId,
+  getUsersWithCodes,
   createUser,
   updateUser,
   logMessage
@@ -29,7 +31,7 @@ const setUserDebounce = (chatId = '') => USERS_DEBOUNCE[chatId] = Date.now();
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
 const requestUserByChatId = async (chatId) => {
-  const foundUser = (await getUsers()).find((user) => String(user.chatId) === String(chatId));
+  const foundUser = await getUserByChatId(chatId);
   if (foundUser) {
     return new User(foundUser)
   }
@@ -105,11 +107,14 @@ const removeCodesOfBlockedUser = async (e = {}) => {
     await sendMessageToAdmin(MESSAGES.errorBlockByUser(currentUser));
   }
 }
-
-const job = new CronJob('0 0 */4 * * *', async function() {
+const autoUpdateUsers = async () => {
   try {
-    const allUsers = await getUsers();
-    const filteredUsers = allUsers.filter(user => Array.isArray(user.codes) && user.codes.length);
+    const usersWithCodes = await getUsersWithCodes();
+    const filteredUsers = usersWithCodes.filter(user => {
+      return Array.isArray(user.codes) &&
+      user.codes.length &&
+      !user.codes.every((code) => Code.isComplete(code))
+    });
 
     for (let i in filteredUsers) {
       const currentUser = new User(filteredUsers[i]);
@@ -117,6 +122,12 @@ const job = new CronJob('0 0 */4 * * *', async function() {
       for (let ii in currentUser.codes) {
         try {
           const code = new Code(currentUser.codes[ii]);
+
+          if (Code.isComplete(code)) {
+            await promiseTimeout(TIMEOUTS.cronNextUserCode);
+            continue;
+          }
+
           const newCode = await getCodeFromMidpass(code.uid);
           const hasChanges = code.hasChangesWith(newCode);
 
@@ -135,6 +146,16 @@ const job = new CronJob('0 0 */4 * * *', async function() {
               }
             });
             await sendMessageToAdmin(MESSAGES.userCodeHasChanges(currentUser, newCode));
+          } else {
+            // await sendMessageToAdmin(MESSAGES.autoUpdateWithoutChanges(currentUser, newCode));
+            await logMessage({
+              type: LOGS_TYPES.autoUpdateWithoutChanges,
+              user: currentUser,
+              message: `codeUid: ${newCode.uid}`,
+              meta: {
+                'CODE': newCode
+              }
+            });
           }
         } catch(ee) {
           console.error(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
@@ -161,7 +182,16 @@ const job = new CronJob('0 0 */4 * * *', async function() {
       message: MESSAGES.errorCronJob(e, 'ROOT'),
     });
   }
-});
+}
+const autoUpdateUsersCompleteCallback = async () => {
+  await sendMessageToAdmin(MESSAGES.successCronJob);
+  await logMessage({
+    type: LOGS_TYPES.successCronJob,
+    message: MESSAGES.successCronJob,
+  });
+}
+
+const job = new CronJob('0 0 */4 * * *', autoUpdateUsers, autoUpdateUsersCompleteCallback);
 job.start();
 
 bot.start(async (ctx) => {
@@ -391,7 +421,14 @@ bot.catch((err) => {
   console.error('=== BOT CATCH ===', err);
 });
 
-getUsers().then(() => {
-  bot.launch();
-  console.warn('BOT STARTED');
-})
+if (START_CRON_JOB_IMMEDIATELY) {
+  bot.launch()
+  autoUpdateUsers();
+  console.warn('BOT STARTED WITH START_CRON_JOB_IMMEDIATELY');
+} else {
+  getUsersWithCodes().then((data) => {
+    bot.launch();
+    console.warn('BOT STARTED! UsersWithCodes:', data.length);
+  })
+}
+

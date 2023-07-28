@@ -58,15 +58,16 @@ export const getCodeFromMidpass = async (uid = '') => {
 //   }
 // }
 
-export const getUsers = async () => {
+export const getAllUsers = async (filterString = '') => {
   const pageSize = 100;
+  const filter = filterString ? `${filterString}&` : ''
 
   let allValues = [];
   let page = 1;
 
   while (page) {
     try {
-      const res = (await axiosInstance.get(`${API_ROUTE_USERS}?pagination[page]=${page}&pagination[pageSize]=${pageSize}&populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*`)).data
+      const res = (await axiosInstance.get(`${API_ROUTE_USERS}?${filter}pagination[page]=${page}&pagination[pageSize]=${pageSize}&populate[codes][populate][internalStatus]=*&populate[codes][populate][passportStatus]=*`)).data
       const pageCount = res?.meta?.pagination?.pageCount || page;
       allValues = allValues.concat(res.values);
       await new Promise(resolve => setTimeout(resolve, TIMEOUTS.getUsers));
@@ -78,6 +79,26 @@ export const getUsers = async () => {
   }
 
   return allValues;
+}
+
+export const getUsersWithCodes = async () => {
+  try {
+    return await getAllUsers('filters[codes][id][$ne]=null')
+  } catch(e) {
+    throw `ERROR at api.getUsersWithCodes: ${e}`
+  }
+}
+
+export const getUserByChatId = async (chatId = '') => {
+  try {
+    if (chatId) {
+      return (await getAllUsers(`filters[chatId][$eq]=${chatId}`))[0]
+    }
+
+    throw 'ERROR at api.getUsersWithCodes: Отсутствует chatId пользователя'
+  } catch(e) {
+    throw `ERROR at api.getUsersWithCodes: ${e}`
+  }
 }
 
 export const createUser = async (user = {}) => {

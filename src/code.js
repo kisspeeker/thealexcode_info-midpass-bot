@@ -1,4 +1,4 @@
-import { MESSAGES } from './constants.js';
+import { MESSAGES, FALSY_PASSPORT_STATUSES } from './constants.js';
 
 const shortUidLength = 6;
 
@@ -32,6 +32,10 @@ export default class Code {
 
   static isShortValid(shortUid = '') {
     return shortUid && String(shortUid).length === shortUidLength + 1;
+  }
+
+  static isComplete(code = {}) {
+    return code.internalStatus.percent === 0 && FALSY_PASSPORT_STATUSES.includes(code.internalStatus.name.toLowerCase())
   }
 
   hasChangesWith(code = {}) {

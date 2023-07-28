@@ -3,6 +3,7 @@ import dotenv from 'dotenv-flow';
 dotenv.config();
 
 export const DEBUG = false;
+export const START_CRON_JOB_IMMEDIATELY = false;
 
 export const BOT_TOKEN = process.env.TG_BOT_TOKEN;
 export const ADMIN_CHAT_ID = process.env.TG_ADMIN_CHAT_ID;
@@ -18,6 +19,8 @@ export const LOGS_TYPES = {
   errorCronJobRoot: 'errorCronJobRoot',
   errorCronJobUserCode: 'errorCronJobUserCode',
   successStart: 'successStart',
+  successCronJob: 'successCronJob',
+  autoUpdateWithoutChanges: 'autoUpdateWithoutChanges',
   autoUpdateWithChanges: 'autoUpdateWithChanges',
   subscribeEnable: 'subscribeEnable',
   unsubscribeEnable: 'unsubscribeEnable',
@@ -36,6 +39,11 @@ export const TIMEOUTS = {
 export const API_USER_AGENTS = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+]
+
+export const FALSY_PASSPORT_STATUSES = [
+  'паспорт выдан',
+  'отмена изготовления паспорта'
 ]
 
 export const MESSAGES = {
@@ -67,12 +75,20 @@ export const MESSAGES = {
   unsubscribe: 'Выберите заявление, которое нужно перестать отслеживать:',
   unsubscribeEnable: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
   codeHasChanges: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
+  autoUpdateWithoutChanges(user = {}, code = {}) {
+    return `
+<b>ℹ️ У пользователя не изменился статус заявления.</b>
+
+<b>User:</b> ${user.chatId || user.id || user.userName}
+${MESSAGES.codeStatus(code)}
+`
+  },
   userCodeHasChanges(user = {}, code = {}) {
     return `
 <b>ℹ️ У пользователя изменился статус заявления!</b>
 
 <b>User:</b> ${user.chatId || user.id || user.userName}
-${this.codeStatus(code)}
+${MESSAGES.codeStatus(code)}
 `
   },
   codeStatus: (code = {}) =>
@@ -135,6 +151,7 @@ ${message}
 `,
   successSendToUser: (userId, messageToUser) => `✅ Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`,
   errorSendToUser: (userId, e) => `❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: \n\n${e?.code || '-'}: ${e?.description || '-'}`,
+  successCronJob: `✅✅✅ Успешно пройден цикл CronJob`,
   errorCronJob: (e, type = '-', obj = {}) => `
 ❌ Ошибка CronJob (${type}):
 
