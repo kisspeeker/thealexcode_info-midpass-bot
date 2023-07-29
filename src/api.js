@@ -26,23 +26,24 @@ export const axiosInstance = axios.create({
 export const logMessage = async (data = {}) => {
   try {
     const date = new Intl.DateTimeFormat('ru-RU', {
-      timeStyle: 'short',
+      timeStyle: 'medium',
+      dateStyle: 'short',
       timeZone: 'Europe/Moscow'
     });
     const type = String(LogsTypes[data?.type] || '-');
     const logMethod = type.toLowerCase().includes('error') ? 'error' : 'log'
     const user = String(data?.user?.chatId || data?.user?.id || data?.user?.userName || '-');
-    const header = `<b>${date.format()}</b> / ${type}`;
+    const header = `[${date.format()}] / ${type}`;
+    const headerColor = `[${date.format()}] / \x1b[36m${type}\x1b[0m`;
     const body = {
       type,
       user,
-      message: `
-${header}
-${String(data?.message || '-')}
-`
+      message: (color = false) =>
+`${color ? headerColor : header}
+${String(data?.message || '-')}`,
     }
     const messageWithMeta = `
-${body.message}
+${body.message()}
 
 META<<<${JSON.stringify(data?.meta || {})}>>>META
 `
@@ -58,7 +59,7 @@ META<<<${JSON.stringify(data?.meta || {})}>>>META
         parse_mode: 'HTML',
       });
     }
-    console[logMethod](body.message);
+    console[logMethod](body.message(true));
   } catch(e) {
     console.error('ERROR IN LOGSMESSAGE', e?.response?.data);
   }
