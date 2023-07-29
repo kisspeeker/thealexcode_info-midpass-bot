@@ -64,11 +64,11 @@ export const getCodeFromMidpass = async (uid = '') => {
     const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
 
     if (!newCode) {
-      throw Messages.ERROR_REQUEST_CODE;
+      throw Messages.ERROR_REQUEST_CODE_WITH_USER_CODE(uid);
     }
     return new Code(newCode)
   } catch(e) {
-    throw Messages.ERROR_REQUEST_CODE;
+    throw Messages.ERROR_REQUEST_CODE_WITH_USER_CODE(uid);
   }
 }
 
