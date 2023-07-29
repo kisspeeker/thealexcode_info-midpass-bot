@@ -152,6 +152,12 @@ ${this.DEFAULT_START}
   SUCCESS_SEND_TO_USER: (userId, messageToUser) =>
 `ℹ️ Успешно написал пользователю ${userId}. Сообщение: ${messageToUser}
 `,
+  SUCCESS_SUBSCRIBE_ENABLE: (user = {}, codeUid = '') =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} подписался на ${codeUid}
+`,
+  SUCCESS_UNSUBSCRIBE_ENABLE: (user = {}, codeUid = '') =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} отписался от ${codeUid}
+`,
   USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') =>
 `ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,

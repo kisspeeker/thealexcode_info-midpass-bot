@@ -275,15 +275,16 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
   } else {
     replyOptions.reply_markup = { remove_keyboard: true }
   }
+  ctx.reply(Messages.UNSUBSCRIBE_ENABLE(codeUid), replyOptions);
   await logMessage({
     type: LogsTypes.UNSUBSCRIBE_ENABLE,
     user: currentUser,
-    message: `${codeUid}`,
+    message: Messages.SUCCESS_UNSUBSCRIBE_ENABLE(currentUser, codeUid),
+    messageToAdmin: Messages.SUCCESS_UNSUBSCRIBE_ENABLE(currentUser, codeUid),
     meta: {
       [MetaKeys.CODE_UID]: codeUid
     }
   });
-  ctx.reply(Messages.UNSUBSCRIBE_ENABLE(codeUid), replyOptions);
 });
 
 bot.action(/subscribe (.+)/, async (ctx) => {
@@ -318,7 +319,8 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     await logMessage({
       type: LogsTypes.SUBSCRIBE_ENABLE,
       user: currentUser,
-      message: `${codeUid}`,
+      message: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
+      messageToAdmin: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
       meta: {
         [MetaKeys.CODE_UID]: codeUid
       }
