@@ -5,11 +5,13 @@ import { CronJob } from 'cron';
 
 import {
   BOT_TOKEN,
-  MESSAGES,
   ADMIN_CHAT_ID,
-  LOGS_TYPES,
-  TIMEOUTS,
-  START_CRON_JOB_IMMEDIATELY
+  START_CRONJOB_IMMEDIATELY,
+  CRONJOB_SCHEDULES,
+  Messages,
+  LogsTypes,
+  Timeouts,
+  MetaKeys
 } from './src/constants.js';
 import {
   getCodeFromMidpass,
@@ -26,7 +28,7 @@ const bot = new Telegraf(BOT_TOKEN);
 
 const USERS_DEBOUNCE = {};
 
-const isUserDebounced = (chatId = '', delay = TIMEOUTS.text) => USERS_DEBOUNCE[chatId] && (Date.now() - USERS_DEBOUNCE[chatId]) < delay;
+const isUserDebounced = (chatId = '', delay = Timeouts.TEXT) => USERS_DEBOUNCE[chatId] && (Date.now() - USERS_DEBOUNCE[chatId]) < delay;
 const setUserDebounce = (chatId = '') => USERS_DEBOUNCE[chatId] = Date.now();
 const promiseTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isAdmin = (ctx = {}) => String(ctx.from.id) === ADMIN_CHAT_ID;
@@ -84,11 +86,11 @@ const sendCodeStatusToUser = async (
       source: statusImage
     }, {
       parse_mode: 'HTML',
-      caption: hasChanges ? MESSAGES.codeHasChanges(newCode.status) : newCode.status,
+      caption: hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status,
       ...keyboardInlineSubscribe(newCode, needHideKeyboard),
     });
   } else {
-    await bot.telegram.sendMessage(currentUser.chatId, hasChanges ? MESSAGES.codeHasChanges(newCode.status) : newCode.status, {
+    await bot.telegram.sendMessage(currentUser.chatId, hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status, {
       parse_mode: 'HTML',
       ...keyboardInlineSubscribe(newCode, needHideKeyboard),
     });
@@ -104,10 +106,14 @@ const removeCodesOfBlockedUser = async (e = {}) => {
 
     currentUser.removeAllUserCodes();
     await updateUser(currentUser);
-    await sendMessageToAdmin(MESSAGES.errorBlockByUser(currentUser));
+    await sendMessageToAdmin(Messages.ERROR_BLOCK_BY_USER(currentUser));
   }
 }
 const autoUpdateUsers = async () => {
+  let counterUsersChecked = 0
+  let counterCodes = 0
+  let counterCodesUpdated = 0
+
   try {
     const usersWithCodes = await getUsersWithCodes();
     const filteredUsers = usersWithCodes.filter(user => {
@@ -116,86 +122,106 @@ const autoUpdateUsers = async () => {
       !user.codes.every((code) => Code.isComplete(code))
     });
 
+    console.warn(Messages.START_CRONJOB(filteredUsers.length));
+    await sendMessageToAdmin(Messages.START_CRONJOB(filteredUsers.length));
+    await logMessage({
+      type: LogsTypes.START_CRONJOB,
+      message: Messages.START_CRONJOB(filteredUsers.length),
+      meta: {
+        [MetaKeys.COUNTER_USERS_WITH_CODES]: filteredUsers.length
+      }
+    })
+
     for (let i in filteredUsers) {
       const currentUser = new User(filteredUsers[i]);
+      counterUsersChecked++;
 
       for (let ii in currentUser.codes) {
         try {
           const code = new Code(currentUser.codes[ii]);
 
           if (Code.isComplete(code)) {
-            await promiseTimeout(TIMEOUTS.cronNextUserCode);
+            await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
             continue;
           }
 
           const newCode = await getCodeFromMidpass(code.uid);
           const hasChanges = code.hasChangesWith(newCode);
 
+          counterCodes++;
+
           if (hasChanges) {
             currentUser.updateUserCodes(newCode);
 
             await updateUser(currentUser);
             await sendCodeStatusToUser(currentUser, newCode, true, true);
-            await promiseTimeout(TIMEOUTS.cronNextUserCode);
+            await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
             await logMessage({
-              type: LOGS_TYPES.autoUpdateWithChanges,
+              type: LogsTypes.AUTOUPDATE_WITH_CHANGES,
               user: currentUser,
               message: `codeUid: ${newCode.uid}`,
               meta: {
-                'CODE': newCode
+                [MetaKeys.CODE]: newCode
               }
             });
-            await sendMessageToAdmin(MESSAGES.userCodeHasChanges(currentUser, newCode));
+            await sendMessageToAdmin(Messages.USER_CODE_HAS_CHANGES(currentUser, newCode));
+
+            counterCodesUpdated++;
           } else {
-            // await sendMessageToAdmin(MESSAGES.autoUpdateWithoutChanges(currentUser, newCode));
             await logMessage({
-              type: LOGS_TYPES.autoUpdateWithoutChanges,
+              type: LogsTypes.AUTOUPDATE_WITHOUT_CHANGES,
               user: currentUser,
               message: `codeUid: ${newCode.uid}`,
               meta: {
-                'CODE': newCode
+                [MetaKeys.CODE]: newCode
               }
             });
           }
         } catch(ee) {
-          console.error(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
-          await sendMessageToAdmin(MESSAGES.errorCronJob(ee, 'USERCODE', currentUser.codes[ii]));
+          console.error(Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]));
+          await sendMessageToAdmin(Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]));
           await removeCodesOfBlockedUser(ee);
           await logMessage({
-            type: LOGS_TYPES.errorCronJobUserCode,
+            type: LogsTypes.ERROR_CRONJOB_USER_CODE,
             user: currentUser,
-            message: MESSAGES.errorCronJob(ee, 'USERCODE'),
+            message: Messages.ERROR_CRONJOB(ee, 'USERCODE'),
             meta: {
-              'CODE_UID': currentUser.codes[ii]
+              [MetaKeys.CODE_UID]: currentUser.codes[ii]
             }
           });
           continue;
         }
       }
-      await promiseTimeout(TIMEOUTS.cronNextUser);
+      await promiseTimeout(Timeouts.CRONJOB_NEXT_USER);
     }
   } catch(e) {
-    console.error(MESSAGES.errorCronJob(e, 'ROOT'));
-    await sendMessageToAdmin(MESSAGES.errorCronJob(e, 'ROOT'));
+    console.error(Messages.ERROR_CRONJOB(e, 'ROOT'));
+    await sendMessageToAdmin(Messages.ERROR_CRONJOB(e, 'ROOT'));
     await logMessage({
-      type: LOGS_TYPES.errorCronJobRoot,
-      message: MESSAGES.errorCronJob(e, 'ROOT'),
+      type: LogsTypes.ERROR_CRONJOB_ROOT,
+      message: Messages.ERROR_CRONJOB(e, 'ROOT'),
+    });
+  } finally {
+    await sendMessageToAdmin(Messages.END_CRONJOB());
+    await logMessage({
+      type: LogsTypes.END_CRONJOB,
+      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated),
+      meta: {
+        [MetaKeys.COUNTER_USERS_CHECKED]: counterUsersChecked,
+        [MetaKeys.COUNTER_CODES]: counterCodes,
+        [MetaKeys.COUNTER_CODES_UPDATED]: counterCodesUpdated,
+      }
     });
   }
 }
-const autoUpdateUsersCompleteCallback = async () => {
-  await sendMessageToAdmin(MESSAGES.successCronJob);
-  await logMessage({
-    type: LOGS_TYPES.successCronJob,
-    message: MESSAGES.successCronJob,
-  });
-}
 
-const job = new CronJob('0 0 */4 * * *', autoUpdateUsers, autoUpdateUsersCompleteCallback);
-job.start();
+CRONJOB_SCHEDULES.forEach((schedule) => {
+  const job = new CronJob(schedule, autoUpdateUsers, null, true, 'Europe/Moscow');
+  job.start();
+})
 
 bot.start(async (ctx) => {
-  if (isUserDebounced(ctx.from.id, TIMEOUTS.start)) {
+  if (isUserDebounced(ctx.from.id, Timeouts.START)) {
     setUserDebounce(ctx.from.id);
     return;
   }
@@ -204,22 +230,22 @@ bot.start(async (ctx) => {
   let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
-    ctx.reply(MESSAGES.startForUser, {
+    ctx.reply(Messages.START_FOR_USER, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
   } else {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    ctx.reply(MESSAGES.start, {
+    ctx.reply(Messages.START, {
       parse_mode: 'HTML',
     });
-  }
-  if (!isAdmin(ctx)) {
-    await sendMessageToAdmin(MESSAGES.newUser(currentUser));
-    await logMessage({
-      type: LOGS_TYPES.successStart,
-      user: currentUser,
-    });
+    if (!isAdmin(ctx)) {
+      await sendMessageToAdmin(Messages.NEW_USER(currentUser));
+      await logMessage({
+        type: LogsTypes.SUCCESS_START,
+        user: currentUser,
+      });
+    }
   }
 });
 
@@ -252,14 +278,14 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
     replyOptions.reply_markup = { remove_keyboard: true }
   }
   await logMessage({
-    type: LOGS_TYPES.unsubscribeEnable,
+    type: LogsTypes.UNSUBSCRIBE_ENABLE,
     user: currentUser,
     message: `${codeUid}`,
     meta: {
-      'CODE_UID': codeUid
+      [MetaKeys.CODE_UID]: codeUid
     }
   });
-  ctx.reply(MESSAGES.unsubscribeEnable(codeUid), replyOptions);
+  ctx.reply(Messages.UNSUBSCRIBE_ENABLE(codeUid), replyOptions);
 });
 
 bot.action(/subscribe (.+)/, async (ctx) => {
@@ -279,24 +305,24 @@ bot.action(/subscribe (.+)/, async (ctx) => {
   const isSubscribeEnableAlready = (currentUser.codes || []).some((code) => code.uid === codeUid);
 
   if (isSubscribeEnableAlready) {
-    ctx.reply(MESSAGES.subscribeEnableAlready(codeUid), {
+    ctx.reply(Messages.SUBSCRIBE_ENABLE_ALREADY(codeUid), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
   } else {
     currentUser.updateUserCodes(await getCodeFromMidpass(codeUid));
     await updateUser(currentUser);
-    ctx.reply(MESSAGES.subscribeEnable(codeUid), {
+    ctx.reply(Messages.SUBSCRIBE_ENABLE(codeUid), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
 
     await logMessage({
-      type: LOGS_TYPES.subscribeEnable,
+      type: LogsTypes.SUBSCRIBE_ENABLE,
       user: currentUser,
       message: `codeUid: ${codeUid}`,
       meta: {
-        'CODE_UID': codeUid
+        [MetaKeys.CODE_UID]: codeUid
       }
     });
   }
@@ -321,7 +347,7 @@ bot.on('text', async (ctx) => {
     let codeUid = text;
 
     if (text.startsWith('отписаться')) {
-      ctx.reply(MESSAGES.unsubscribe, {
+      ctx.reply(Messages.UNSUBSCRIBE, {
         parse_mode: 'HTML',
         ...keyboardInlineUnsubscribe(currentUser),
       });
@@ -337,10 +363,10 @@ bot.on('text', async (ctx) => {
           parse_mode: 'HTML',
           disable_notification: true
         });
-        await sendMessageToAdmin(MESSAGES.successSendToUser(userId, messageToUser));
+        await sendMessageToAdmin(Messages.SUCCESS_SEND_TO_USER(userId, messageToUser));
       } catch(e) {
-        console.error(MESSAGES.errorSendToUser(userId, e));
-        await sendMessageToAdmin(MESSAGES.errorSendToUser(userId, e));
+        console.error(Messages.ERROR_SEND_TO_USER(userId, e));
+        await sendMessageToAdmin(Messages.ERROR_SEND_TO_USER(userId, e));
       }
 
       return;
@@ -359,7 +385,7 @@ bot.on('text', async (ctx) => {
         }
         isUpdatingCode = true;
       } else {
-        ctx.reply(MESSAGES.errorValidateCode, {
+        ctx.reply(Messages.ERROR_VALIDATE_CODE, {
           parse_mode: 'HTML',
           ...keyboardDefault(currentUser),
         });
@@ -369,15 +395,15 @@ bot.on('text', async (ctx) => {
 
     if (!Code.isValid(codeUid)) {
       if (!isAdmin(ctx)) {
-        await sendMessageToAdmin(MESSAGES.userMessageWithoutUid(currentUser, text));
+        await sendMessageToAdmin(Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text));
       }
       await logMessage({
-        type: LOGS_TYPES.message,
+        type: LogsTypes.MESSAGE,
         user: currentUser,
         message: text,
       });
 
-      ctx.reply(MESSAGES.errorValidateCode, {
+      ctx.reply(Messages.ERROR_VALIDATE_CODE, {
         parse_mode: 'HTML',
         ...keyboardDefault(currentUser),
       });
@@ -394,26 +420,26 @@ bot.on('text', async (ctx) => {
       await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
     }
     await logMessage({
-      type: LOGS_TYPES.successCodeStatus,
+      type: LogsTypes.SUCCESS_CODE_STATUS,
       user: currentUser,
       message: `codeUid: ${newCode?.uid || '-'}`,
       meta: {
-        'CODE': newCode
+        [MetaKeys.CODE]: newCode
       }
     });
 
   } catch(e) {
-    console.error(MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text));
-    ctx.reply(e || MESSAGES.errorRequestCode, {
+    console.error(Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text));
+    ctx.reply(e || Messages.ERROR_REQUEST_CODE, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
     await logMessage({
-      type: LOGS_TYPES.error,
+      type: LogsTypes.ERROR,
       user: currentUser,
-      message: MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text),
+      message: Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text),
     });
-    await sendMessageToAdmin(MESSAGES.errorRequestCodeWithUser(currentUser, ctx.message.text));
+    await sendMessageToAdmin(Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text));
   }
 });
 
@@ -421,10 +447,10 @@ bot.catch((err) => {
   console.error('=== BOT CATCH ===', err);
 });
 
-if (START_CRON_JOB_IMMEDIATELY) {
+if (START_CRONJOB_IMMEDIATELY) {
   bot.launch()
   autoUpdateUsers();
-  console.warn('BOT STARTED WITH START_CRON_JOB_IMMEDIATELY');
+  console.warn('BOT STARTED WITH START_CRONJOB_IMMEDIATELY');
 } else {
   getUsersWithCodes().then((data) => {
     bot.launch();

@@ -1,4 +1,4 @@
-import { MESSAGES, FALSY_PASSPORT_STATUSES } from './constants.js';
+import { Messages, FALSY_PASSPORT_STATUSES } from './constants.js';
 
 const shortUidLength = 6;
 
@@ -23,7 +23,7 @@ export default class Code {
   }
 
   get status() {
-    return MESSAGES.codeStatus(this);
+    return Messages.CODE_STATUS(this);
   }
 
   static isValid(uid = '') {
