@@ -122,11 +122,10 @@ const autoUpdateUsers = async () => {
       !user.codes.every((code) => Code.isComplete(code))
     });
 
-    console.warn(Messages.START_CRONJOB(filteredUsers.length));
-    await sendMessageToAdmin(Messages.START_CRONJOB(filteredUsers.length));
     await logMessage({
       type: LogsTypes.START_CRONJOB,
       message: Messages.START_CRONJOB(filteredUsers.length),
+      messageToAdmin: Messages.START_CRONJOB(filteredUsers.length),
       meta: {
         [MetaKeys.COUNTER_USERS_WITH_CODES]: filteredUsers.length
       }
@@ -159,32 +158,31 @@ const autoUpdateUsers = async () => {
             await logMessage({
               type: LogsTypes.AUTOUPDATE_WITH_CHANGES,
               user: currentUser,
-              message: `codeUid: ${newCode.uid}`,
+              message: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode),
+              messageToAdmin: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode),
               meta: {
                 [MetaKeys.CODE]: newCode
               }
             });
-            await sendMessageToAdmin(Messages.USER_CODE_HAS_CHANGES(currentUser, newCode));
 
             counterCodesUpdated++;
           } else {
             await logMessage({
               type: LogsTypes.AUTOUPDATE_WITHOUT_CHANGES,
               user: currentUser,
-              message: `codeUid: ${newCode.uid}`,
+              message: Messages.AUTOUPDATE_WITHOUT_CHANGES(currentUser, newCode),
               meta: {
                 [MetaKeys.CODE]: newCode
               }
             });
           }
         } catch(ee) {
-          console.error(Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]));
-          await sendMessageToAdmin(Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]));
           await removeCodesOfBlockedUser(ee);
           await logMessage({
             type: LogsTypes.ERROR_CRONJOB_USER_CODE,
             user: currentUser,
-            message: Messages.ERROR_CRONJOB(ee, 'USERCODE'),
+            message: Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]),
+            messageToAdmin: Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]),
             meta: {
               [MetaKeys.CODE_UID]: currentUser.codes[ii]
             }
@@ -195,17 +193,16 @@ const autoUpdateUsers = async () => {
       await promiseTimeout(Timeouts.CRONJOB_NEXT_USER);
     }
   } catch(e) {
-    console.error(Messages.ERROR_CRONJOB(e, 'ROOT'));
-    await sendMessageToAdmin(Messages.ERROR_CRONJOB(e, 'ROOT'));
     await logMessage({
       type: LogsTypes.ERROR_CRONJOB_ROOT,
       message: Messages.ERROR_CRONJOB(e, 'ROOT'),
+      messageToAdmin: Messages.ERROR_CRONJOB(e, 'ROOT'),
     });
   } finally {
-    await sendMessageToAdmin(Messages.END_CRONJOB());
     await logMessage({
       type: LogsTypes.END_CRONJOB,
       message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated),
+      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated),
       meta: {
         [MetaKeys.COUNTER_USERS_CHECKED]: counterUsersChecked,
         [MetaKeys.COUNTER_CODES]: counterCodes,
@@ -240,10 +237,11 @@ bot.start(async (ctx) => {
       parse_mode: 'HTML',
     });
     if (!isAdmin(ctx)) {
-      await sendMessageToAdmin(Messages.NEW_USER(currentUser));
       await logMessage({
         type: LogsTypes.SUCCESS_START,
         user: currentUser,
+        message: Messages.NEW_USER(currentUser),
+        messageToAdmin: Messages.NEW_USER(currentUser),
       });
     }
   }
@@ -320,7 +318,7 @@ bot.action(/subscribe (.+)/, async (ctx) => {
     await logMessage({
       type: LogsTypes.SUBSCRIBE_ENABLE,
       user: currentUser,
-      message: `codeUid: ${codeUid}`,
+      message: `${codeUid}`,
       meta: {
         [MetaKeys.CODE_UID]: codeUid
       }
@@ -394,13 +392,11 @@ bot.on('text', async (ctx) => {
     }
 
     if (!Code.isValid(codeUid)) {
-      if (!isAdmin(ctx)) {
-        await sendMessageToAdmin(Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text));
-      }
       await logMessage({
         type: LogsTypes.MESSAGE,
         user: currentUser,
-        message: text,
+        message: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
+        messageToAdmin: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
       });
 
       ctx.reply(Messages.ERROR_VALIDATE_CODE, {
@@ -422,14 +418,13 @@ bot.on('text', async (ctx) => {
     await logMessage({
       type: LogsTypes.SUCCESS_CODE_STATUS,
       user: currentUser,
-      message: `codeUid: ${newCode?.uid || '-'}`,
+      message: `${newCode?.uid || '-'}`,
       meta: {
         [MetaKeys.CODE]: newCode
       }
     });
 
   } catch(e) {
-    console.error(Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text));
     ctx.reply(e || Messages.ERROR_REQUEST_CODE, {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
@@ -438,8 +433,8 @@ bot.on('text', async (ctx) => {
       type: LogsTypes.ERROR,
       user: currentUser,
       message: Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text),
+      messageToAdmin: Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text),
     });
-    await sendMessageToAdmin(Messages.ERROR_REQUEST_CODE_WITH_USER(currentUser, ctx.message.text));
   }
 });
 
@@ -450,11 +445,11 @@ bot.catch((err) => {
 if (START_CRONJOB_IMMEDIATELY) {
   bot.launch()
   autoUpdateUsers();
-  console.warn('BOT STARTED WITH START_CRONJOB_IMMEDIATELY');
+  console.log('BOT STARTED WITH START_CRONJOB_IMMEDIATELY');
 } else {
   getUsersWithCodes().then((data) => {
     bot.launch();
-    console.warn('BOT STARTED! UsersWithCodes:', data.length);
+    console.log('BOT STARTED! UsersWithCodes:', data.length);
   })
 }
 

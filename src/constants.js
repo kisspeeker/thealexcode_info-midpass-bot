@@ -87,29 +87,23 @@ export const Messages = {
 Раньше ты уже пользовался моими оповещениями, я отображу их ниже (если они были).
 Ты можешь ввести номер другого заявления и узнать его статус:
 `,
-  SUBSCRIBE_ENABLE: (uid = '') => `✅ Теперь я буду уведомлять тебя об изменениях статуса заявления <b>${uid}</b>.`,
-  SUBSCRIBE_ENABLE_ALREADY: (uid = '') => `✅ Заявление уже отслеживается <b>${uid}</b>`,
-  UNSUBSCRIBE: 'Выберите заявление, которое нужно перестать отслеживать:',
-  UNSUBSCRIBE_ENABLE: (uid = '') => `✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.`,
-  CODE_HAS_CHANGES: (status = {}) => `<b>🔥 Статус заявления изменился!</b> \n\n${status}`,
-  AUTOUPDATE_WITHOUT_CHANGES(user = {}, code = {}) {
-    return `
-<b>ℹ️ У пользователя не изменился статус заявления.</b>
-
-<b>User:</b> ${user.chatId || user.id || user.userName}
-${Messages.CODE_STATUS(code)}
-`
-  },
-  USER_CODE_HAS_CHANGES(user = {}, code = {}) {
-    return `
-<b>ℹ️ У пользователя изменился статус заявления!</b>
-
-<b>User:</b> ${user.chatId || user.id || user.userName}
-${Messages.CODE_STATUS(code)}
-`
-  },
-  CODE_STATUS: (code = {}) =>
-`<b>#️⃣ Номер заявления:</b> ${code?.uid || '-'}
+  SUBSCRIBE_ENABLE: (uid = '') => `
+✅ Теперь я буду уведомлять тебя об изменениях статуса заявления <b>${uid}</b>.
+`,
+  SUBSCRIBE_ENABLE_ALREADY: (uid = '') => `
+✅ Заявление уже отслеживается <b>${uid}</b>
+`,
+  UNSUBSCRIBE: `
+Выберите заявление, которое нужно перестать отслеживать:
+`,
+  UNSUBSCRIBE_ENABLE: (uid = '') => `
+✅ Успешно отписался от отслеживания статуса заявления <b>${uid}</b>.
+`,
+  CODE_HAS_CHANGES: (status = {}) => `
+<b>🔥 Статус заявления изменился!</b> \n\n${status}
+`,
+  CODE_STATUS: (code = {}) => `
+<b>#️⃣ Номер заявления:</b> ${code?.uid || '-'}
 
 <b>🟡 Процент:</b> <b>${code?.internalStatus?.percent || '-'}</b>
 
@@ -118,27 +112,6 @@ ${Messages.CODE_STATUS(code)}
 <b>🟡 Внутренний статус:</b> ${code?.internalStatus?.name || '-'}
 
 <b>📅 Дата подачи:</b> ${code?.receptionDate || '-'}
-`,
-  NEW_USER: (user = {}) =>
-`🆕 Новый пользователь!
-
-<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
-<b>chatId:</b> ${user?.chatId || '-'}
-<b>id:</b> ${user?.id || '-'}
-<b>firstName:</b> ${user?.firstName || '-'}
-<b>lastName:</b> ${user?.lastName || '-'}
-`,
-  USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') =>
-`⚠️ Сообщение от пользователя!
-
-<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
-<b>chatId:</b> ${user?.chatId || '-'}
-<b>id:</b> ${user?.id || '-'}
-<b>firstName:</b> ${user?.firstName || '-'}
-<b>lastName:</b> ${user?.lastName || '-'}
-
-<b>Message:</b>
-${message}
 `,
   ERROR_VALIDATE_CODE: `
 ❌ Некорректный формат номера заявления.
@@ -156,43 +129,59 @@ ${message}
 
 Если ошибка повторяется, используй официальный сайт МИД РФ https://info.midpass.ru/
 `,
+// ============================
+// LOG MESSAGES (NOT FOR USERS)
+// ============================
+  NEW_USER: (user = {}) => `
+🆕 Новый пользователь!
+
+<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
+<b>chatId:</b> ${user?.chatId || '-'}
+<b>id:</b> ${user?.id || '-'}
+<b>firstName:</b> ${user?.firstName || '-'}
+<b>lastName:</b> ${user?.lastName || '-'}
+`,
+  SUCCESS_SEND_TO_USER: (userId, messageToUser) => `
+ℹ️ Успешно написал пользователю ${userId}. Сообщение:
+${messageToUser}
+`,
+  USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') => `
+ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение:
+${message}
+`,
+  AUTOUPDATE_WITHOUT_CHANGES: (user = {}, code = {}) => `
+ℹ️ У пользователя ${user.chatId || user.id || user.userName} не изменился статус заявления.
+`,
+  AUTOUPDATE_WITH_CHANGES: (user = {}, code = {}) => `
+ℹ️ У пользователя ${user.chatId || user.id || user.userName} изменился статус заявления!
+`,
   ERROR_REQUEST_CODE_WITH_USER: (user = {}, message = '') => `
-❌ Ошибка получения информации о заявлении с сервера МИД РФ.
-
-<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
-<b>chatId:</b> ${user?.chatId || '-'}
-<b>id:</b> ${user?.id || '-'}
-<b>firstName:</b> ${user?.firstName || '-'}
-<b>lastName:</b> ${user?.lastName || '-'}
-<b>Сообщение</b> ${message}
+❌ Ошибка у пользователя ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение:
+${message}
 `,
-  SUCCESS_SEND_TO_USER: (userId, messageToUser) => `✅ Успешно написал пользователю ${userId}. Сообщение: \n\n${messageToUser}`,
-  ERROR_SEND_TO_USER: (userId, e) => `❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: \n\n${e?.code || '-'}: ${e?.description || '-'}`,
-  ERROR_BLOCK_BY_USER: (user = {}, message = '') => `
-❌ Bot was blocked by the user. Он больше не выпадает в выдаче, его коды удалены
-
-<b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
-<b>chatId:</b> ${user?.chatId || '-'}
-<b>id:</b> ${user?.id || '-'}
-<b>firstName:</b> ${user?.firstName || '-'}
-<b>lastName:</b> ${user?.lastName || '-'}
+  ERROR_SEND_TO_USER: (userId, e) => `
+❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение:
+${e?.code || '-'}: ${e?.description || '-'}
 `,
-ERROR_CRONJOB: (e, type = '-', obj = {}) => `
-❌ Ошибка CronJob (${type}):
+  ERROR_BLOCK_BY_USER: (user = {}) => `
+❌ Bot was blocked by the user ${user?.chatId || '-'}. Он больше не выпадает в выдаче, его коды удалены
+`,
+  ERROR_CRONJOB: (e, type = '-', obj = {}) => `
+❌ ERROR_CRONJOB (${type}):
 
 ${e}
 
 Additional data:
 ${JSON.stringify(obj)}
 `,
-START_CRONJOB: (counterUserWithCodes = 0) => `
-<b>${new Date().getUTCHours() + TIMEZONE_OFFSET_MSK}:${new Date().getMinutes()}</b> / ${LogsTypes.START_CRONJOB}
-Количество пользователей: ${counterUserWithCodes}
+  START_CRONJOB: (counterUserWithCodes = 0) => `
+ℹ️ START_CRONJOB
+Количество пользователей: <b>${counterUserWithCodes}</b>
 `,
-END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0) => `
-<b>${new Date().getUTCHours() + TIMEZONE_OFFSET_MSK}:${new Date().getMinutes()}</b> / ${LogsTypes.END_CRONJOB}
-Проверено пользователей: ${counterUsersChecked}
-Проверено заявлений: ${counterCodes}
-Обновлено заявлений: ${counterCodesUpdated}
+  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0) => `
+✅ END_CRONJOB
+Проверено пользователей: <b>${counterUsersChecked}</b>
+Проверено заявлений: <b>${counterCodes}</b>
+Обновлено заявлений: <b>${counterCodesUpdated}</b>
 `,
 }

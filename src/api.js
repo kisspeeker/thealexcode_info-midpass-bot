@@ -5,9 +5,12 @@ import {
   API_ROUTE_LOGS,
   API_ROUTE_USERS,
   API_USER_AGENTS,
+  ADMIN_CHAT_ID,
+  TIMEZONE_OFFSET_MSK,
   DEBUG,
   Timeouts,
   Messages,
+  LogsTypes,
 } from './constants.js';
 import Code from './code.js'
 
@@ -21,14 +24,36 @@ export const axiosInstance = axios.create({
 
 export const logMessage = async (data = {}) => {
   try {
-    await axiosInstance.post(API_ROUTE_LOGS, {
-      type: String(data?.type || '-'),
-      user: String(data?.user?.chatId || data?.user?.id || data?.user?.userName || '-'),
-      message: `${String(data?.message || '-')}
+    const type = String(LogsTypes[data?.type] || '-');
+    const logMethod = type.toLowerCase().includes('error') ? 'error' : 'log'
+    const user = String(data?.user?.chatId || data?.user?.id || data?.user?.userName || '-');
+    const header = `<b>${new Date().getUTCHours() + TIMEZONE_OFFSET_MSK}:${new Date().getMinutes()}</b> / ${type}`;
+    const body = {
+      type,
+      user,
+      message: `
+${header}
+${String(data?.message || '-')}
+`
+    }
+    const messageWithMeta = `
+${body.message}
 
 META<<<${JSON.stringify(data?.meta || {})}>>>META
-`,
+`
+
+    await axiosInstance.post(API_ROUTE_LOGS, {
+      type: body.type,
+      user: body.user,
+      message: messageWithMeta,
     });
+
+    if (data?.messageToAdmin && globalThis.bot) {
+      await globalThis.bot.telegram.sendMessage(ADMIN_CHAT_ID, data.messageToAdmin, {
+        parse_mode: 'HTML',
+      });
+    }
+    console[logMethod](body.message);
   } catch(e) {
     console.error('ERROR IN LOGSMESSAGE', e?.response?.data);
   }
