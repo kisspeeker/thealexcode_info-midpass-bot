@@ -158,8 +158,8 @@ const autoUpdateUsers = async () => {
             await logMessage({
               type: LogsTypes.AUTOUPDATE_WITH_CHANGES,
               user: currentUser,
-              message: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode),
-              messageToAdmin: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode),
+              message: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode, i),
+              messageToAdmin: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode, i),
               meta: {
                 [MetaKeys.CODE]: newCode
               }
@@ -170,7 +170,7 @@ const autoUpdateUsers = async () => {
             await logMessage({
               type: LogsTypes.AUTOUPDATE_WITHOUT_CHANGES,
               user: currentUser,
-              message: Messages.AUTOUPDATE_WITHOUT_CHANGES(currentUser, newCode),
+              message: Messages.AUTOUPDATE_WITHOUT_CHANGES(currentUser, newCode, i),
               meta: {
                 [MetaKeys.CODE]: newCode
               }
@@ -227,13 +227,13 @@ bot.start(async (ctx) => {
   let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
-    ctx.reply(Messages.START_FOR_USER(), {
+    ctx.reply(Messages.START_FOR_USER_EXIST(), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
   } else {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    ctx.reply(Messages.START(), {
+    ctx.reply(Messages.START_FOR_USER(), {
       parse_mode: 'HTML',
     });
     if (!isAdmin(ctx)) {

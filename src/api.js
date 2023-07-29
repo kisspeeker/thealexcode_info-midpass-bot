@@ -6,7 +6,6 @@ import {
   API_ROUTE_USERS,
   API_USER_AGENTS,
   ADMIN_CHAT_ID,
-  TIMEZONE_OFFSET_MSK,
   DEBUG,
   Timeouts,
   Messages,
@@ -26,10 +25,14 @@ export const axiosInstance = axios.create({
 
 export const logMessage = async (data = {}) => {
   try {
+    const date = new Intl.DateTimeFormat('ru-RU', {
+      timeStyle: 'short',
+      timeZone: 'Europe/Moscow'
+    });
     const type = String(LogsTypes[data?.type] || '-');
     const logMethod = type.toLowerCase().includes('error') ? 'error' : 'log'
     const user = String(data?.user?.chatId || data?.user?.id || data?.user?.userName || '-');
-    const header = `<b>${new Date().getUTCHours() + TIMEZONE_OFFSET_MSK}:${new Date().getMinutes()}</b> / ${type}`;
+    const header = `<b>${date.format()}</b> / ${type}`;
     const body = {
       type,
       user,

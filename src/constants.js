@@ -14,8 +14,6 @@ export const API_KEY = process.env.API_KEY
 export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
 export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
-export const TIMEZONE_OFFSET_MSK = 3;
-
 export const CRONJOB_SCHEDULES = [
   '23 9,12,15,17,19,21 * * 1-5', // Weekdays 9:23,12:23...21:23
   '17 16,20 * * 0,6' // Weekends 16:17,20:17
@@ -39,8 +37,8 @@ export const LogsTypes = {
 export const Timeouts = {
   START: 1000 * 2,
   TEXT: 1000 * 4,
-  CRONJOB_NEXT_USER_CODE: 1000 * 30,
-  CRONJOB_NEXT_USER: 1000 * 45,
+  CRONJOB_NEXT_USER_CODE: 1000 * 20,
+  CRONJOB_NEXT_USER: 1000 * 40,
   GET_USERS: 100,
 }
 
@@ -84,13 +82,13 @@ export const Messages = {
   - Выходные дни:
 16:17, 20:17
 `,
-  START() {
+  START_FOR_USER() {
     return `
 ${this.DEFAULT_START}
 
 Введи номер своего заявления и узнай его статус:
 `},
-  START_FOR_USER() {
+  START_FOR_USER_EXIST() {
     return `
 ${this.DEFAULT_START}
 
@@ -142,8 +140,8 @@ ${this.DEFAULT_START}
 // ============================
 // LOG MESSAGES (NOT FOR USERS)
 // ============================
-  NEW_USER: (user = {}) => `
-🆕 Новый пользователь!
+  NEW_USER: (user = {}) =>
+`🆕 Новый пользователь!
 
 <b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
 <b>chatId:</b> ${user?.chatId || '-'}
@@ -151,49 +149,42 @@ ${this.DEFAULT_START}
 <b>firstName:</b> ${user?.firstName || '-'}
 <b>lastName:</b> ${user?.lastName || '-'}
 `,
-  SUCCESS_SEND_TO_USER: (userId, messageToUser) => `
-ℹ️ Успешно написал пользователю ${userId}. Сообщение:
-${messageToUser}
+  SUCCESS_SEND_TO_USER: (userId, messageToUser) =>
+`ℹ️ Успешно написал пользователю ${userId}. Сообщение: ${messageToUser}
 `,
-  USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') => `
-ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение:
-${message}
+  USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') =>
+`ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,
-  AUTOUPDATE_WITHOUT_CHANGES: (user = {}, code = {}) => `
-ℹ️ У пользователя ${user.chatId || user.id || user.userName} не изменился статус заявления.
+  AUTOUPDATE_WITHOUT_CHANGES: (user = {}, code = {}, index = 0) =>
+`ℹ️ ${index} У пользователя ${user.chatId || user.id || user.userName} не изменился статус заявления ${code.uid}.
 `,
-  AUTOUPDATE_WITH_CHANGES: (user = {}, code = {}) => `
-ℹ️ У пользователя ${user.chatId || user.id || user.userName} изменился статус заявления!
+  AUTOUPDATE_WITH_CHANGES: (user = {}, code = {}, index = 0) =>
+`ℹ️ ${index} У пользователя ${user.chatId || user.id || user.userName} изменился статус заявления ${code.uid}
 `,
-  ERROR_REQUEST_CODE_WITH_USER_CODE: (codeuid = '') => `
-❌ Ошибка при получении статуса завяления:
-${codeuid}
+  ERROR_REQUEST_CODE_WITH_USER_CODE: (codeuid = '') =>
+`❌ Ошибка при получении статуса завяления: ${codeuid}
 `,
-  ERROR_REQUEST_CODE_WITH_USER: (user = {}, message = '') => `
-❌ Ошибка у пользователя ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение:
-${message}
+  ERROR_REQUEST_CODE_WITH_USER: (user = {}, message = '') =>
+`❌ Ошибка у пользователя ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,
-  ERROR_SEND_TO_USER: (userId, e) => `
-❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение:
-${e?.code || '-'}: ${e?.description || '-'}
+  ERROR_SEND_TO_USER: (userId, e) =>
+`❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: ${e?.code || '-'}: ${e?.description || '-'}
 `,
-  ERROR_BLOCK_BY_USER: (user = {}) => `
-❌ Bot was blocked by the user ${user?.chatId || '-'}. Он больше не выпадает в выдаче, его коды удалены
+  ERROR_BLOCK_BY_USER: (user = {}) =>
+`❌ Bot was blocked by the user ${user?.chatId || '-'}. Он больше не выпадает в выдаче, его коды удалены
 `,
-  ERROR_CRONJOB: (e, type = '-', obj = {}) => `
-❌ ERROR_CRONJOB (${type}):
-
+  ERROR_CRONJOB: (e, type = '-', obj = {}) =>
+`❌ ERROR_CRONJOB (${type}):
 ${e}
-
-Additional data:
+ADDITIONAL DATA:
 ${JSON.stringify(obj)}
 `,
-  START_CRONJOB: (counterUserWithCodes = 0) => `
-ℹ️ START_CRONJOB
+  START_CRONJOB: (counterUserWithCodes = 0) =>
+`ℹ️ START_CRONJOB
 Количество пользователей: <b>${counterUserWithCodes}</b>
 `,
-  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0) => `
-✅ END_CRONJOB
+  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0) =>
+`✅ END_CRONJOB
 Проверено пользователей: <b>${counterUsersChecked}</b>
 Проверено заявлений: <b>${counterCodes}</b>
 Обновлено заявлений: <b>${counterCodesUpdated}</b>
