@@ -12,6 +12,8 @@ import {
   Messages,
   LogsTypes,
 } from './constants.js';
+
+import { bot } from '../index.js'
 import Code from './code.js'
 
 export const axiosInstance = axios.create({
@@ -48,8 +50,8 @@ META<<<${JSON.stringify(data?.meta || {})}>>>META
       message: messageWithMeta,
     });
 
-    if (data?.messageToAdmin && globalThis.bot) {
-      await globalThis.bot.telegram.sendMessage(ADMIN_CHAT_ID, data.messageToAdmin, {
+    if (data?.messageToAdmin && bot) {
+      await bot.telegram.sendMessage(ADMIN_CHAT_ID, data.messageToAdmin, {
         parse_mode: 'HTML',
       });
     }

@@ -24,7 +24,7 @@ import {
 import User from './src/user.js';
 import Code from './src/code.js';
 
-const bot = new Telegraf(BOT_TOKEN);
+export const bot = new Telegraf(BOT_TOKEN);
 
 const USERS_DEBOUNCE = {};
 
@@ -227,13 +227,13 @@ bot.start(async (ctx) => {
   let currentUser = await requestUserByChatId(ctx.from.id);
 
   if (currentUser) {
-    ctx.reply(Messages.START_FOR_USER, {
+    ctx.reply(Messages.START_FOR_USER(), {
       parse_mode: 'HTML',
       ...keyboardDefault(currentUser),
     });
   } else {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
-    ctx.reply(Messages.START, {
+    ctx.reply(Messages.START(), {
       parse_mode: 'HTML',
     });
     if (!isAdmin(ctx)) {
