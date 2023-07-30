@@ -152,6 +152,9 @@ ${this.DEFAULT_START}
   SUCCESS_SEND_TO_USER: (userId, messageToUser) =>
 `ℹ️ Успешно написал пользователю ${userId}. Сообщение: ${messageToUser}
 `,
+  SUCCESS_CODE_STATUS: (user = {}, codeUid = '') =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} проверил ${codeUid}
+`,
   SUCCESS_SUBSCRIBE_ENABLE: (user = {}, codeUid = '') =>
 `ℹ️ Пользователь ${user.chatId || user.id || user.userName} подписался на ${codeUid}
 `,

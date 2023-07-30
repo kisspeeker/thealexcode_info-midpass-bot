@@ -159,7 +159,6 @@ const autoUpdateUsers = async () => {
               type: LogsTypes.AUTOUPDATE_WITH_CHANGES,
               user: currentUser,
               message: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode, i),
-              messageToAdmin: Messages.AUTOUPDATE_WITH_CHANGES(currentUser, newCode, i),
               meta: {
                 [MetaKeys.CODE]: newCode
               }
@@ -420,7 +419,8 @@ bot.on('text', async (ctx) => {
     await logMessage({
       type: LogsTypes.SUCCESS_CODE_STATUS,
       user: currentUser,
-      message: `${newCode?.uid || '-'}`,
+      message: Messages.SUCCESS_CODE_STATUS(currentUser, newCode.uid),
+      messageToAdmin: Messages.SUCCESS_CODE_STATUS(currentUser, newCode.uid),
       meta: {
         [MetaKeys.CODE]: newCode
       }
