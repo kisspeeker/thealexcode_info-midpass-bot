@@ -22,7 +22,7 @@ export default class Code {
   }
 
   get status() {
-    return Messages.CODE_STATUS(this);
+    return (this.passportStatus?.name ? '' : Messages.CODE_STATUS_EMPTY) + Messages.CODE_STATUS(this);
   }
 
   get getUpdateTimeString() {

@@ -90,28 +90,27 @@ const sendCodeStatusToUser = async (
     });
   }
 };
-const removeCodesOfBlockedUser = async (e = {}) => {
-  if (e && e.response && e.response.error_code && e.on && e.on.payload && e.on.payload.chat_id) {
-    let currentUser = await requestUserByChatId(e.on.payload.chat_id);
+const removeBlockedUserCodes = async (e = {}) => {
+  let currentUser = await requestUserByChatId(e?.on?.payload?.chat_id);
 
-    if (!currentUser) {
-      return;
-    }
-
-    currentUser.removeAllUserCodes();
-    await updateUser(currentUser);
-    await logMessage({
-      type: LogsTypes.ERROR_BLOCK_BY_USER,
-      user: currentUser,
-      message: Messages.ERROR_BLOCK_BY_USER(currentUser),
-      messageToAdmin: Messages.ERROR_BLOCK_BY_USER(currentUser),
-    })
+  if (!currentUser) {
+    return;
   }
+
+  currentUser.removeAllUserCodes();
+  await updateUser(currentUser);
+  await logMessage({
+    type: LogsTypes.ERROR_BLOCK_BY_USER,
+    user: currentUser,
+    message: Messages.ERROR_BLOCK_BY_USER(currentUser),
+    messageToAdmin: Messages.ERROR_BLOCK_BY_USER(currentUser),
+  })
 }
 const autoUpdateUsers = async () => {
   let counterUsersChecked = 0
   let counterCodes = 0
   let counterCodesUpdated = 0
+  let counterCodesError = 0
 
   try {
     const usersWithCodes = await getUsersWithCodes();
@@ -175,7 +174,12 @@ const autoUpdateUsers = async () => {
             });
           }
         } catch(ee) {
-          await removeCodesOfBlockedUser(ee);
+          counterCodesError++
+          const isBlockedUser = ee && ee.response && ee.response.error_code && ee.on && ee.on.payload && ee.on.payload.chat_id;
+
+          if (isBlockedUser) {
+            await removeBlockedUserCodes(ee);
+          }
           await logMessage({
             type: LogsTypes.ERROR_CRONJOB_USER_CODE,
             user: currentUser,
@@ -199,12 +203,13 @@ const autoUpdateUsers = async () => {
   } finally {
     await logMessage({
       type: LogsTypes.END_CRONJOB,
-      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated),
-      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated),
+      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError),
+      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError),
       meta: {
         [MetaKeys.COUNTER_USERS_CHECKED]: counterUsersChecked,
         [MetaKeys.COUNTER_CODES]: counterCodes,
         [MetaKeys.COUNTER_CODES_UPDATED]: counterCodesUpdated,
+        [MetaKeys.COUNTER_CODES_ERROR]: counterCodesError,
       }
     });
   }
@@ -307,22 +312,30 @@ bot.on('text', async (ctx) => {
       return;
     }
 
-    if (isAdmin(ctx) && text.startsWith('написать')) {
-      const userId = text.split(' ')[1];
-      const messageToUser = text.split(' ').slice(2).join(' ');
+    if (isAdmin(ctx)) {
+      if (text.startsWith('написать')) {
+        const userId = text.split(' ')[1];
+        const messageToUser = text.split(' ').slice(2).join(' ');
 
-      try {
-        await bot.telegram.sendMessage(userId, messageToUser, {
-          parse_mode: 'HTML',
-          disable_notification: true
-        });
-        await sendMessageToAdmin(Messages.SUCCESS_SEND_TO_USER(userId, messageToUser));
-      } catch(e) {
-        console.error(Messages.ERROR_SEND_TO_USER(userId, e));
-        await sendMessageToAdmin(Messages.ERROR_SEND_TO_USER(userId, e));
+        try {
+          await bot.telegram.sendMessage(userId, messageToUser, {
+            parse_mode: 'HTML',
+            disable_notification: true
+          });
+          await sendMessageToAdmin(Messages.SUCCESS_SEND_TO_USER(userId, messageToUser));
+        } catch(e) {
+          console.error(Messages.ERROR_SEND_TO_USER(userId, e));
+          await sendMessageToAdmin(Messages.ERROR_SEND_TO_USER(userId, e));
+        }
+
+        return;
       }
 
-      return;
+      if (text.startsWith('test')) {
+        // TODO: для чего нибудь
+
+        return
+      }
     }
 
     if (text.startsWith('faq')) {

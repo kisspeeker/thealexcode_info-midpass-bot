@@ -57,7 +57,8 @@ export const MetaKeys = {
   COUNTER_USERS_WITH_CODES: 'COUNTER_USERS_WITH_CODES',
   COUNTER_USERS_CHECKED: 'COUNTER_USERS_CHECKED',
   COUNTER_CODES: 'COUNTER_CODES',
-  COUNTER_CODES_UPDATED: 'COUNTER_CODES_UPDATED'
+  COUNTER_CODES_UPDATED: 'COUNTER_CODES_UPDATED',
+  COUNTER_CODES_ERROR: 'COUNTER_CODES_ERROR',
 }
 
 export const API_USER_AGENTS = [
@@ -173,6 +174,9 @@ ${this.CODE_STATUS(code)}
 
 <b>📅 Дата подачи:</b> ${code?.receptionDate || '-'}
 `,
+  CODE_STATUS_EMPTY: `
+ℹ️ Статус будет доступен при следующей проверке сайта МИД РФ (Если заявление уже появилось на https://info.midpass.ru/)
+`,
   ERROR_VALIDATE_CODE: `
 ❌ Некорректный формат номера заявления.
 
@@ -256,10 +260,11 @@ ${JSON.stringify(obj)}
 `ℹ️ START_CRONJOB
 Количество пользователей: <b>${counterUserWithCodes}</b>
 `,
-  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0) =>
+  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0, counterCodesError = 0) =>
 `✅ END_CRONJOB
 Проверено пользователей: <b>${counterUsersChecked}</b>
 Проверено заявлений: <b>${counterCodes}</b>
 Обновлено заявлений: <b>${counterCodesUpdated}</b>
+Ошибок: <b>${counterCodesError}</b>
 `,
 }
