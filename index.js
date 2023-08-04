@@ -50,21 +50,17 @@ const getStatusImage = (code = {}) => {
   }
 };
 const keyboardDefault = (currentUser) => {
-  const res = []
+  const res = [
+    [
+      Markup.button.text('FAQ ℹ️'),
+      Markup.button.text('Расписание 🕔')
+    ],
+  ]
   if (currentUser && currentUser.hasCodes) {
-    currentUser.codes.forEach((code) => res.push(Markup.button.text(`Обновить ${code.shortUid} 🔄`)))
-  }
-  if (res.length) {
-    res.push(Markup.button.text(`Отписаться ❌`))
+    currentUser.codes.forEach((code) => res.push([Markup.button.text(`Статус ${code.shortUid} 🔄`)]))
+    res.push([Markup.button.text(`Отписаться ❌`)])
   }
   return res.length ? Markup.keyboard(res).resize() : []
-};
-const keyboardInlineSubscribe = (code, needHide = false) => {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback('Подписаться на обновления', `subscribe ${code.uid}`, needHide || !code.uid),
-    ],
-  ]).resize()
 };
 const keyboardInlineUnsubscribe = (currentUser) => {
   const res = []
@@ -87,12 +83,10 @@ const sendCodeStatusToUser = async (
     }, {
       parse_mode: 'HTML',
       caption: hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status,
-      ...keyboardInlineSubscribe(newCode, needHideKeyboard),
     });
   } else {
     await bot.telegram.sendMessage(currentUser.chatId, hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status, {
       parse_mode: 'HTML',
-      ...keyboardInlineSubscribe(newCode, needHideKeyboard),
     });
   }
 };
@@ -106,7 +100,12 @@ const removeCodesOfBlockedUser = async (e = {}) => {
 
     currentUser.removeAllUserCodes();
     await updateUser(currentUser);
-    await sendMessageToAdmin(Messages.ERROR_BLOCK_BY_USER(currentUser));
+    await logMessage({
+      type: LogsTypes.ERROR_BLOCK_BY_USER,
+      user: currentUser,
+      message: Messages.ERROR_BLOCK_BY_USER(currentUser),
+      messageToAdmin: Messages.ERROR_BLOCK_BY_USER(currentUser),
+    })
   }
 }
 const autoUpdateUsers = async () => {
@@ -218,7 +217,6 @@ CRONJOB_SCHEDULES.forEach((schedule) => {
 
 bot.start(async (ctx) => {
   if (isUserDebounced(ctx.from.id, Timeouts.START)) {
-    setUserDebounce(ctx.from.id);
     return;
   }
   setUserDebounce(ctx.from.id);
@@ -248,7 +246,6 @@ bot.start(async (ctx) => {
 
 bot.action(/unsubscribe (.+)/, async (ctx) => {
   if (isUserDebounced(ctx.from.id)) {
-    setUserDebounce(ctx.from.id);
     return;
   }
   setUserDebounce(ctx.from.id);
@@ -286,56 +283,13 @@ bot.action(/unsubscribe (.+)/, async (ctx) => {
   });
 });
 
-bot.action(/subscribe (.+)/, async (ctx) => {
-  if (isUserDebounced(ctx.from.id)) {
-    setUserDebounce(ctx.from.id);
-    return;
-  }
-  setUserDebounce(ctx.from.id);
-
-  const codeUid = ctx.match[1];
-  let currentUser = await requestUserByChatId(ctx.from.id);
-
-  if (!currentUser) {
-    return;
-  }
-
-  const isSubscribeEnableAlready = (currentUser.codes || []).some((code) => code.uid === codeUid);
-
-  if (isSubscribeEnableAlready) {
-    ctx.reply(Messages.SUBSCRIBE_ENABLE_ALREADY(codeUid), {
-      parse_mode: 'HTML',
-      ...keyboardDefault(currentUser),
-    });
-  } else {
-    currentUser.updateUserCodes(await getCodeFromMidpass(codeUid));
-    await updateUser(currentUser);
-    ctx.reply(Messages.SUBSCRIBE_ENABLE(codeUid), {
-      parse_mode: 'HTML',
-      ...keyboardDefault(currentUser),
-    });
-
-    await logMessage({
-      type: LogsTypes.SUBSCRIBE_ENABLE,
-      user: currentUser,
-      message: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
-      messageToAdmin: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
-      meta: {
-        [MetaKeys.CODE_UID]: codeUid
-      }
-    });
-  }
-});
-
 bot.on('text', async (ctx) => {
   if (isUserDebounced(ctx.from.id)) {
-    setUserDebounce(ctx.from.id);
     return;
   }
   setUserDebounce(ctx.from.id);
 
   let currentUser = await requestUserByChatId(ctx.from.id);
-  let isUpdatingCode = false;
 
   if (!currentUser) {
     currentUser = new User(await createUser(new User({...ctx.from, isNew: true})));
@@ -371,28 +325,76 @@ bot.on('text', async (ctx) => {
       return;
     }
 
-    if (text.startsWith('обновить')) {
-      let shortUidToUpdate = text.match(/обновить (.+) (.+)/) && text.match(/обновить (.+) (.+)/)[1];
+    if (text.startsWith('faq')) {
+      await ctx.reply(Messages.FAQ_BASE, {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+      await ctx.reply(Messages.FAQ_STATUSES, {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+      await logMessage({
+        type: LogsTypes.SHOW_FAQ,
+        user: currentUser,
+        message: Messages.USER_SHOW_FAQ(currentUser),
+        messageToAdmin: Messages.USER_SHOW_FAQ(currentUser),
+      });
 
-      if (Code.isShortValid(shortUidToUpdate)) {
-        const currentUserCode = new Code(currentUser.codes.find((code) => code.shortUid === shortUidToUpdate));
-        codeUid = currentUserCode?.uid;
+      return
+    }
 
-        if (new Date() - new Date(currentUserCode.updateTime) < 30000) {
+    if (text.startsWith('расписание')) {
+      ctx.reply(Messages.AUTOUPDATE_SCHEDULES, {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+      await logMessage({
+        type: LogsTypes.SHOW_SCHEDULE,
+        user: currentUser,
+        message: Messages.USER_SHOW_SCHEDULE(currentUser),
+        messageToAdmin: Messages.USER_SHOW_SCHEDULE(currentUser),
+      });
+
+      return
+    }
+
+    if (text.startsWith('статус')) {
+      try {
+        const shortUidToUpdate = text.match(/статус (.+) (.+)/) && text.match(/статус (.+) (.+)/)[1];
+        const currentUserCode = Code.isShortValid(shortUidToUpdate) ? currentUser.getUserCode(shortUidToUpdate) : undefined
+
+        if (currentUserCode) {
+          codeUid = currentUserCode?.uid
           await sendCodeStatusToUser(currentUser, currentUserCode, true);
-          return;
+          await logMessage({
+            type: LogsTypes.SUCCESS_CODE_STATUS,
+            user: currentUser,
+            message: Messages.SUCCESS_CODE_STATUS(currentUser, codeUid),
+            messageToAdmin: Messages.SUCCESS_CODE_STATUS(currentUser, codeUid),
+            meta: {
+              [MetaKeys.CODE]: currentUserCode
+            }
+          });
+        } else {
+          ctx.reply(Messages.ERROR_VALIDATE_CODE, {
+            parse_mode: 'HTML',
+            ...keyboardDefault(currentUser),
+          });
         }
-        isUpdatingCode = true;
-      } else {
-        ctx.reply(Messages.ERROR_VALIDATE_CODE, {
-          parse_mode: 'HTML',
-          ...keyboardDefault(currentUser),
-        });
-        return
+      } catch(e) {
+        throw e
       }
+
+      return
     }
 
     if (!Code.isValid(codeUid)) {
+      ctx.reply(Messages.ERROR_VALIDATE_CODE, {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+
       await logMessage({
         type: LogsTypes.MESSAGE,
         user: currentUser,
@@ -400,32 +402,61 @@ bot.on('text', async (ctx) => {
         messageToAdmin: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
       });
 
-      ctx.reply(Messages.ERROR_VALIDATE_CODE, {
-        parse_mode: 'HTML',
-        ...keyboardDefault(currentUser),
-      });
       return
     }
 
-    const newCode = await getCodeFromMidpass(codeUid);
+    const currentUserCode = currentUser.getUserCode(codeUid)
 
-    if (isUpdatingCode && currentUser) {
-      currentUser.updateUserCodes(newCode);
-    }
+    if (currentUserCode) {
+      ctx.reply(Messages.SUBSCRIBE_ENABLE_ALREADY(currentUserCode), {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+      await logMessage({
+        type: LogsTypes.SUBSCRIBE_ENABLE_ALREADY,
+        user: currentUser,
+        message: Messages.USER_SUBSCRIBE_ENABLE_ALREADY(currentUser, codeUid),
+        messageToAdmin: Messages.USER_SUBSCRIBE_ENABLE_ALREADY(currentUser, codeUid),
+        meta: {
+          [MetaKeys.CODE_UID]: codeUid
+        }
+      });
+    } else {
+      if (currentUser.hasMaxCountCodes) {
+        ctx.reply(Messages.MAX_COUNT_CODES(currentUser.codes.length), {
+          parse_mode: 'HTML',
+          ...keyboardDefault(currentUser),
+        });
+        await logMessage({
+          type: LogsTypes.USER_HAS_MAX_COUNT_CODES,
+          user: currentUser,
+          message: Messages.USER_HAS_MAX_COUNT_CODES(currentUser, codeUid),
+          messageToAdmin: Messages.USER_HAS_MAX_COUNT_CODES(currentUser, codeUid),
+          meta: {
+            [MetaKeys.CODE_UID]: codeUid
+          }
+        });
 
-    if (newCode) {
-      await sendCodeStatusToUser(currentUser, newCode, isUpdatingCode);
-    }
-    await logMessage({
-      type: LogsTypes.SUCCESS_CODE_STATUS,
-      user: currentUser,
-      message: Messages.SUCCESS_CODE_STATUS(currentUser, newCode.uid),
-      messageToAdmin: Messages.SUCCESS_CODE_STATUS(currentUser, newCode.uid),
-      meta: {
-        [MetaKeys.CODE]: newCode
+        return
       }
-    });
 
+      currentUser.updateUserCodes(new Code({ uid: codeUid }));
+      await updateUser(currentUser);
+      ctx.reply(Messages.SUBSCRIBE_ENABLE(codeUid), {
+        parse_mode: 'HTML',
+        ...keyboardDefault(currentUser),
+      });
+
+      await logMessage({
+        type: LogsTypes.SUBSCRIBE_ENABLE,
+        user: currentUser,
+        message: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
+        messageToAdmin: Messages.SUCCESS_SUBSCRIBE_ENABLE(currentUser, codeUid),
+        meta: {
+          [MetaKeys.CODE_UID]: codeUid
+        }
+      });
+    }
   } catch(e) {
     ctx.reply(e || Messages.ERROR_REQUEST_CODE, {
       parse_mode: 'HTML',

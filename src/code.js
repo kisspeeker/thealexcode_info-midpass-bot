@@ -1,13 +1,12 @@
-import { Messages, FALSY_PASSPORT_STATUSES } from './constants.js';
+import { Messages, FALSY_PASSPORT_STATUSES, CODE_UID_SHORT_LENGTH } from './constants.js';
 
-const shortUidLength = 6;
 
 export default class Code {
   constructor({ uid, sourceUid, receptionDate, passportStatus, internalStatus, updateTime }) {
     this.uid = uid;
-    this.shortUid = `*${this.uid.slice(-shortUidLength)}`;
+    this.shortUid = `*${this.uid.slice(-CODE_UID_SHORT_LENGTH)}`;
     this.sourceUid = sourceUid;
-    this.receptionDate = receptionDate;
+    this.receptionDate = receptionDate || Code.parseReceptionDateFromUid(uid);
     this.passportStatus = {
       passportStatusId: passportStatus?.id,
       name: passportStatus?.name,
@@ -26,16 +25,35 @@ export default class Code {
     return Messages.CODE_STATUS(this);
   }
 
+  get getUpdateTimeString() {
+    return (new Date(this.updateTime)).toLocaleString('ru-RU', {
+      timeStyle: 'medium',
+      dateStyle: 'short',
+      timeZone: 'Europe/Moscow'
+    })
+  }
+
   static isValid(uid = '') {
     return uid && String(uid).length === 25;
   }
 
   static isShortValid(shortUid = '') {
-    return shortUid && String(shortUid).length === shortUidLength + 1;
+    return shortUid && String(shortUid).length === CODE_UID_SHORT_LENGTH + 1;
   }
 
   static isComplete(code = {}) {
     return code.internalStatus.percent === 0 && FALSY_PASSPORT_STATUSES.includes(code.internalStatus.name.toLowerCase())
+  }
+
+  static parseReceptionDateFromUid(uid = '') {
+    try {
+      const [
+        ,, year, month, day
+      ] = String(uid).match(/^(\d{9})(\d{4})(\d{2})(\d{2})/)
+      return `${year}-${month}-${day}`
+    } catch(e) {
+      console.error(e);
+    }
   }
 
   hasChangesWith(code = {}) {

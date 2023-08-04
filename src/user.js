@@ -1,3 +1,4 @@
+import { USER_MAX_COUNT_CODES } from './constants.js'
 import Code from './code.js';
 
 export default class User {
@@ -30,8 +31,17 @@ export default class User {
     return !!(this.codes || []).length
   }
 
+  get hasMaxCountCodes() {
+    return this.hasCodes && (this.codes.length >= USER_MAX_COUNT_CODES)
+  }
+
   get codeStatuses() {
     return (this.codes || []).map((code) => code.status)
+  }
+
+  getUserCode(searchUidPart = '') {
+    const code = this.codes.find((code) => String(code.uid).endsWith(searchUidPart.replace('*', '')))
+    return code ? new Code(code) : undefined
   }
 
   updateUserCodes(currentCode) {
