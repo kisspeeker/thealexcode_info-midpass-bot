@@ -16,7 +16,7 @@ export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
 export const API_ROUTE_USERS = process.env.API_ROOT + '/api/bot-users'
 
 export const CRONJOB_SCHEDULES = [
-  '23 9,12,15,17,19,21 * * 1-5', // Weekdays 9:23,12:23...21:23
+  '23 9,12,15,18,21 * * 1-5', // Weekdays 9:23,12:23...21:23
   '17 16,20 * * 0,6' // Weekends 16:17,20:17
 ]
 
@@ -46,8 +46,8 @@ export const LogsTypes = {
 export const Timeouts = {
   START: 1000 * 2,
   TEXT: 1000 * 2,
-  CRONJOB_NEXT_USER_CODE: 1000 * 20,
-  CRONJOB_NEXT_USER: 1000 * 40,
+  CRONJOB_NEXT_USER_CODE: 1000 * 15,
+  CRONJOB_NEXT_USER: 1000 * 30,
   GET_USERS: 100,
 }
 
@@ -101,16 +101,15 @@ ${this.DEFAULT_START()}
 Расписание построено по большой выборке, а заявление обновляется в самые актуальные моменты
 
 - Будние дни:
-  9:23-11:00,
-  12:23-14:00,
-  15:23-16:00,
-  17:23-19:00,
-  19:23-21:00,
-  21:23-23:00
+  9:23-11:23,
+  12:23-14:23,
+  15:23-17:23,
+  18:23-20:23,
+  21:23-23:23
 
 - Выходные дни:
-  16:17-18:00,
-  20:17-22:00
+  16:17-18:17,
+  20:17-22:17
 `,
   FAQ_BASE: `
 <b>ℹ️ Как пользоваться ботом:</b>
@@ -227,17 +226,17 @@ ${this.CODE_STATUS(code)}
   USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') =>
 `ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,
-  USER_HAS_MAX_COUNT_CODES: (user = {}) => `
-ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался превысить допустимое количество отслеживаемых заявлений
+  USER_HAS_MAX_COUNT_CODES: (user = {}) =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался превысить допустимое количество отслеживаемых заявлений
 `,
-  USER_SUBSCRIBE_ENABLE_ALREADY: (user = {}, codeUid = '') => `
-ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался повторно подписаться на ${codeUid}
+  USER_SUBSCRIBE_ENABLE_ALREADY: (user = {}, codeUid = '') =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался повторно подписаться на ${codeUid}
 `,
-  USER_SHOW_SCHEDULE: (user = {}) => `
-ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел расписание
+  USER_SHOW_SCHEDULE: (user = {}) =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел расписание
 `,
-  USER_SHOW_FAQ: (user = {}) => `
-ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел FAQ
+  USER_SHOW_FAQ: (user = {}) =>
+`ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел FAQ
 `,
   ERROR_REQUEST_CODE_WITH_USER_CODE: (codeuid = '') =>
 `❌ Ошибка при получении статуса завяления: ${codeuid}

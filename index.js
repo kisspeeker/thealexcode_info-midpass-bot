@@ -141,7 +141,10 @@ const autoUpdateUsers = async () => {
             continue;
           }
 
-          await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
+          // если у пользователя несколько заявлений, то ждем таймаут перед запросом
+          if (ii) {
+            await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
+          }
 
           const newCode = await getCodeFromMidpass(code.uid);
           const hasChanges = code.hasChangesWith(newCode);
