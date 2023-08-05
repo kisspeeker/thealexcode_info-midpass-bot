@@ -2,7 +2,7 @@ import { Messages, FALSY_PASSPORT_STATUSES, CODE_UID_SHORT_LENGTH } from './cons
 
 
 export default class Code {
-  constructor({ uid, sourceUid, receptionDate, passportStatus, internalStatus, updateTime }) {
+  constructor({ uid, sourceUid, receptionDate, passportStatus, internalStatus, updateTime, needUpdateTime = true }) {
     this.uid = uid;
     this.shortUid = `*${this.uid.slice(-CODE_UID_SHORT_LENGTH)}`;
     this.sourceUid = sourceUid;
@@ -18,7 +18,7 @@ export default class Code {
       name: internalStatus?.name,
       percent: internalStatus?.percent,
     };
-    this.updateTime = (updateTime ? new Date(updateTime) : new Date()).toLocaleString('en-EN');
+    this.updateTime = ((updateTime && !needUpdateTime) ? new Date(updateTime) : new Date()).toLocaleString('en-EN');
   }
 
   get status() {

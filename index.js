@@ -138,21 +138,21 @@ const autoUpdateUsers = async () => {
           const code = new Code(currentUser.codes[ii]);
 
           if (Code.isComplete(code)) {
-            await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
             continue;
           }
+
+          await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
 
           const newCode = await getCodeFromMidpass(code.uid);
           const hasChanges = code.hasChangesWith(newCode);
 
+          currentUser.updateUserCodes(newCode);
+          await updateUser(currentUser);
+
           counterCodes++;
 
           if (hasChanges) {
-            currentUser.updateUserCodes(newCode);
-
-            await updateUser(currentUser);
             await sendCodeStatusToUser(currentUser, newCode, true, true);
-            await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
             await logMessage({
               type: LogsTypes.AUTOUPDATE_WITH_CHANGES,
               user: currentUser,
@@ -179,7 +179,11 @@ const autoUpdateUsers = async () => {
 
           if (isBlockedUser) {
             await removeBlockedUserCodes(ee);
+          } else {
+            currentUser.updateUserCodes(new Code(currentUser.codes[ii]));
+            await updateUser(currentUser);
           }
+
           await logMessage({
             type: LogsTypes.ERROR_CRONJOB_USER_CODE,
             user: currentUser,
@@ -372,9 +376,11 @@ bot.on('text', async (ctx) => {
       return
     }
 
-    if (text.startsWith('статус')) {
+    if (text.startsWith('статус') || text.startsWith('обновить')) {
       try {
-        const shortUidToUpdate = text.match(/статус (.+) (.+)/) && text.match(/статус (.+) (.+)/)[1];
+        const shortUidToUpdate = text.startsWith('статус')
+          ? text.match(/статус (.+) (.+)/) && text.match(/статус (.+) (.+)/)[1]
+          : text.match(/обновить (.+) (.+)/) && text.match(/обновить (.+) (.+)/)[1];
         const currentUserCode = Code.isShortValid(shortUidToUpdate) ? currentUser.getUserCode(shortUidToUpdate) : undefined
 
         if (currentUserCode) {

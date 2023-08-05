@@ -41,7 +41,7 @@ export default class User {
 
   getUserCode(searchUidPart = '') {
     const code = this.codes.find((code) => String(code.uid).endsWith(searchUidPart.replace('*', '')))
-    return code ? new Code(code) : undefined
+    return code ? new Code({ ...code, needUpdateTime: false }) : undefined
   }
 
   updateUserCodes(currentCode) {
