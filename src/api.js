@@ -61,7 +61,7 @@ META<<<${JSON.stringify(data?.meta || {})}>>>META
     }
     console[logMethod](body.message(true));
   } catch(e) {
-    console.error('ERROR IN LOGSMESSAGE', e?.response?.data);
+    console.error('ERROR IN LOGSMESSAGE', e?.response?.data || e);
   }
 }
 
@@ -93,7 +93,7 @@ export const getAllUsers = async (filterString = '') => {
       await new Promise(resolve => setTimeout(resolve, Timeouts.GET_USERS));
       page = pageCount > page ? page + 1 : 0;
     } catch (e) {
-      console.error('ERROR at api.getUsers', e?.response?.data);
+      console.error('ERROR at api.getUsers', e?.response?.data || e);
       break;
     }
   }
@@ -126,7 +126,7 @@ export const createUser = async (user = {}) => {
     const res = (await axiosInstance.post(API_ROUTE_USERS, user)).data;
     return res;
   } catch(e) {
-    console.error('ERROR at api.createUser', e?.response?.data);
+    console.error('ERROR at api.createUser', e?.response?.data || e);
     throw e;
   }
 }
@@ -136,7 +136,7 @@ export const updateUser = async (user = {}) => {
     const res = (await axiosInstance.put(`${API_ROUTE_USERS}/${user.id}`, user)).data;
     return res;
   } catch(e) {
-    console.error('ERROR at api.updateUser', e?.response?.data);
+    console.error('ERROR at api.updateUser', e?.response?.data || e);
     throw e;
   }
 }
