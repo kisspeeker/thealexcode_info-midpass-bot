@@ -23,6 +23,7 @@ import {
 } from './src/api.js';
 import User from './src/user.js';
 import Code from './src/code.js';
+import { calculateTimeDifference } from './src/utils.js'
 
 export const bot = new Telegraf(BOT_TOKEN);
 
@@ -107,6 +108,7 @@ const removeBlockedUserCodes = async (e = {}) => {
   })
 }
 const autoUpdateUsers = async () => {
+  const startDate = new Date()
   let counterUsersChecked = 0
   let counterCodes = 0
   let counterCodesUpdated = 0
@@ -191,7 +193,6 @@ const autoUpdateUsers = async () => {
             type: LogsTypes.ERROR_CRONJOB_USER_CODE,
             user: currentUser,
             message: Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]),
-            messageToAdmin: Messages.ERROR_CRONJOB(ee, 'USERCODE', currentUser.codes[ii]),
             meta: {
               [MetaKeys.CODE_UID]: currentUser.codes[ii]
             }
@@ -208,15 +209,17 @@ const autoUpdateUsers = async () => {
       messageToAdmin: Messages.ERROR_CRONJOB(e, 'ROOT'),
     });
   } finally {
+    const cronjobDuration = calculateTimeDifference(startDate)
     await logMessage({
       type: LogsTypes.END_CRONJOB,
-      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError),
-      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError),
+      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, cronjobDuration),
+      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, cronjobDuration),
       meta: {
         [MetaKeys.COUNTER_USERS_CHECKED]: counterUsersChecked,
         [MetaKeys.COUNTER_CODES]: counterCodes,
         [MetaKeys.COUNTER_CODES_UPDATED]: counterCodesUpdated,
         [MetaKeys.COUNTER_CODES_ERROR]: counterCodesError,
+        [MetaKeys.CRONJOB_DURATION]: cronjobDuration,
       }
     });
   }
