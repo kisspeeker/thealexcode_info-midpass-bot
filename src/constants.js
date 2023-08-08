@@ -201,55 +201,55 @@ ${this.CODE_STATUS(code)}
 `🆕 Новый пользователь!
 
 <b>userName:</b> ${user?.userName ? '@' + user.userName : '-'}
-<b>chatId:</b> ${user?.chatId || '-'}
+<b>chatId:</b> <code>${user?.chatId || '-'}</code>
 <b>id:</b> ${user?.id || '-'}
 <b>firstName:</b> ${user?.firstName || '-'}
 <b>lastName:</b> ${user?.lastName || '-'}
 `,
   SUCCESS_SEND_TO_USER: (userId, messageToUser) =>
-`ℹ️ Успешно написал пользователю ${userId}. Сообщение: ${messageToUser}
+`ℹ️ Успешно написал пользователю <code>${userId}</code>. Сообщение: ${messageToUser}
 `,
   SUCCESS_CODE_STATUS: (user = {}, codeUid = '') =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} проверил ${codeUid} (из БД)
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> проверил <code>${codeUid}</code> (из БД)
 `,
   SUCCESS_SUBSCRIBE_ENABLE: (user = {}, codeUid = '') =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} подписался на ${codeUid}
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> подписался на <code>${codeUid}</code>
 `,
   SUCCESS_UNSUBSCRIBE_ENABLE: (user = {}, codeUid = '') =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} отписался от ${codeUid}
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> отписался от <code>${codeUid}</code>
 `,
   AUTOUPDATE_WITHOUT_CHANGES: (user = {}, code = {}, index = 0) =>
-`ℹ️ ${index} У пользователя ${user.chatId || user.id || user.userName} не изменился статус заявления ${code.uid}.
+`ℹ️ ${index} У пользователя <code>${user.chatId || user.id || user.userName}</code> не изменился статус заявления <code>${code.uid}</code>
 `,
   AUTOUPDATE_WITH_CHANGES: (user = {}, code = {}, index = 0) =>
-`ℹ️ ${index} У пользователя ${user.chatId || user.id || user.userName} изменился статус заявления ${code.uid}
+`ℹ️ ${index} У пользователя <code>${user.chatId || user.id || user.userName}</code> изменился статус заявления <code>${code.uid}</code>
 `,
   USER_MESSAGE_WITHOUT_UID: (user = {}, message = '') =>
-`ℹ️ Сообщение от пользователя  ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
+`ℹ️ Сообщение от пользователя <code>${user?.chatId || '-'}</code> userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,
   USER_HAS_MAX_COUNT_CODES: (user = {}) =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался превысить допустимое количество отслеживаемых заявлений
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> пытался превысить допустимое количество отслеживаемых заявлений
 `,
   USER_SUBSCRIBE_ENABLE_ALREADY: (user = {}, codeUid = '') =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} пытался повторно подписаться на ${codeUid}
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> пытался повторно подписаться на <code>${codeUid}</code>
 `,
   USER_SHOW_SCHEDULE: (user = {}) =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел расписание
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> посмотрел расписание
 `,
   USER_SHOW_FAQ: (user = {}) =>
-`ℹ️ Пользователь ${user.chatId || user.id || user.userName} посмотрел FAQ
+`ℹ️ Пользователь <code>${user.chatId || user.id || user.userName}</code> посмотрел FAQ
 `,
   ERROR_REQUEST_CODE_WITH_USER_CODE: (codeuid = '') =>
-`❌ Ошибка при получении статуса завяления: ${codeuid}
+`❌ Ошибка при получении статуса завяления: <code>${codeuid}</code>
 `,
   ERROR_REQUEST_CODE_WITH_USER: (user = {}, message = '') =>
-`❌ Ошибка у пользователя ${user?.chatId || '-'} userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
+`❌ Ошибка у пользователя <code>${user?.chatId || '-'}</code> userName: ${user?.userName ? '@' + user.userName : '-'}. Сообщение: ${message}
 `,
   ERROR_SEND_TO_USER: (userId, e) =>
-`❌ Ошибка при отправке сообщения пользователю ${userId}. Сообщение: ${e?.code || '-'}: ${e?.description || '-'}
+`❌ Ошибка при отправке сообщения пользователю <code>${userId}</code>. Сообщение: ${e?.code || '-'}: ${e?.description || '-'}
 `,
   ERROR_BLOCK_BY_USER: (user = {}) =>
-`❌ Bot was blocked by the user ${user?.chatId || '-'}. Он больше не выпадает в выдаче, его коды удалены
+`❌ Bot was blocked by the user <code>${user?.chatId || '-'}</code>. Он больше не выпадает в выдаче, его коды удалены
 `,
   ERROR_CRONJOB: (e, type = '-', obj = {}) =>
 `❌ ERROR_CRONJOB (${type}):
