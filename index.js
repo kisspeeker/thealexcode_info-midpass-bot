@@ -42,6 +42,7 @@ const requestUserByChatId = async (chatId) => {
 const sendMessageToAdmin = async (message = '') => {
   await bot.telegram.sendMessage(ADMIN_CHAT_ID, message, {
     parse_mode: 'HTML',
+    disable_web_page_preview: true
   });
 };
 const getStatusImage = (code = {}) => {
@@ -84,10 +85,12 @@ const sendCodeStatusToUser = async (
     }, {
       parse_mode: 'HTML',
       caption: hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status,
+      disable_web_page_preview: true
     });
   } else {
     await bot.telegram.sendMessage(currentUser.chatId, hasChanges ? Messages.CODE_HAS_CHANGES(newCode.status) : newCode.status, {
       parse_mode: 'HTML',
+      disable_web_page_preview: true
     });
   }
 };
@@ -330,7 +333,8 @@ bot.on('text', async (ctx) => {
         try {
           await bot.telegram.sendMessage(userId, messageToUser, {
             parse_mode: 'HTML',
-            disable_notification: true
+            disable_notification: true,
+            disable_web_page_preview: true
           });
           await sendMessageToAdmin(Messages.SUCCESS_SEND_TO_USER(userId, messageToUser));
         } catch(e) {
