@@ -221,8 +221,8 @@ const autoUpdateUsers = async () => {
   } finally {
     const cronjobDuration = calculateTimeDifference(startDate)
     let counterRoutesString = ''
-    for (const key in obj) {
-      counterRoutesString += `  ${key}: <b>${obj[key]}</b>\n`;
+    for (const key in counterRoutes) {
+      counterRoutesString += `  ${key}: <b>${counterRoutes[key]}</b>\n`;
     }
     await logMessage({
       type: LogsTypes.END_CRONJOB,
