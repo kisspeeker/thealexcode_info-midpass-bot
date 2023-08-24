@@ -179,14 +179,14 @@ const autoUpdateUsers = async () => {
 
             counterCodesUpdated++;
           } else {
-            await logMessage({
-              type: LogsTypes.AUTOUPDATE_WITHOUT_CHANGES,
-              user: currentUser,
-              message: Messages.AUTOUPDATE_WITHOUT_CHANGES(currentUser, newCode, i),
-              meta: {
-                [MetaKeys.CODE]: newCode
-              }
-            });
+            // await logMessage({
+            //   type: LogsTypes.AUTOUPDATE_WITHOUT_CHANGES,
+            //   user: currentUser,
+            //   message: Messages.AUTOUPDATE_WITHOUT_CHANGES(currentUser, newCode, i),
+            //   meta: {
+            //     [MetaKeys.CODE]: newCode
+            //   }
+            // });
           }
         } catch(ee) {
           counterCodesError++
@@ -376,7 +376,7 @@ bot.on('text', async (ctx) => {
       await logMessage({
         type: LogsTypes.SHOW_FAQ,
         user: currentUser,
-        message: Messages.USER_SHOW_FAQ(currentUser),
+        // message: Messages.USER_SHOW_FAQ(currentUser),
         messageToAdmin: Messages.USER_SHOW_FAQ(currentUser),
       });
 
@@ -391,7 +391,7 @@ bot.on('text', async (ctx) => {
       await logMessage({
         type: LogsTypes.SHOW_SCHEDULE,
         user: currentUser,
-        message: Messages.USER_SHOW_SCHEDULE(currentUser),
+        // message: Messages.USER_SHOW_SCHEDULE(currentUser),
         messageToAdmin: Messages.USER_SHOW_SCHEDULE(currentUser),
       });
 
@@ -411,7 +411,7 @@ bot.on('text', async (ctx) => {
           await logMessage({
             type: LogsTypes.SUCCESS_CODE_STATUS,
             user: currentUser,
-            message: Messages.SUCCESS_CODE_STATUS(currentUser, codeUid),
+            // message: Messages.SUCCESS_CODE_STATUS(currentUser, codeUid),
             messageToAdmin: Messages.SUCCESS_CODE_STATUS(currentUser, codeUid),
             meta: {
               [MetaKeys.CODE]: currentUserCode
@@ -439,7 +439,7 @@ bot.on('text', async (ctx) => {
       await logMessage({
         type: LogsTypes.MESSAGE,
         user: currentUser,
-        message: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
+        // message: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
         messageToAdmin: Messages.USER_MESSAGE_WITHOUT_UID(currentUser, text),
       });
 
@@ -456,7 +456,7 @@ bot.on('text', async (ctx) => {
       await logMessage({
         type: LogsTypes.SUBSCRIBE_ENABLE_ALREADY,
         user: currentUser,
-        message: Messages.USER_SUBSCRIBE_ENABLE_ALREADY(currentUser, codeUid),
+        // message: Messages.USER_SUBSCRIBE_ENABLE_ALREADY(currentUser, codeUid),
         messageToAdmin: Messages.USER_SUBSCRIBE_ENABLE_ALREADY(currentUser, codeUid),
         meta: {
           [MetaKeys.CODE_UID]: codeUid

@@ -46,12 +46,13 @@ ${body.message()}
 
 META<<<${JSON.stringify(data?.meta || {})}>>>META
 `
-
-    await axiosInstance.post(API_ROUTE_LOGS, {
-      type: body.type,
-      user: body.user,
-      message: messageWithMeta,
-    });
+    if (data?.message && bot) {
+      await axiosInstance.post(API_ROUTE_LOGS, {
+        type: body.type,
+        user: body.user,
+        message: messageWithMeta,
+      });
+    }
 
     if (data?.messageToAdmin && bot) {
       await bot.telegram.sendMessage(ADMIN_CHAT_ID, data.messageToAdmin, {
