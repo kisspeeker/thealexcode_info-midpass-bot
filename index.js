@@ -8,6 +8,7 @@ import {
   ADMIN_CHAT_ID,
   START_CRONJOB_IMMEDIATELY,
   CRONJOB_SCHEDULES,
+  API_ROUTE_MIDPASS_PROXIES,
   Messages,
   LogsTypes,
   Timeouts,
@@ -112,6 +113,11 @@ const removeBlockedUserCodes = async (e = {}) => {
 }
 const autoUpdateUsers = async () => {
   const startDate = new Date()
+  const counterRoutes = API_ROUTE_MIDPASS_PROXIES.reduce((acc, curr) => {
+    acc[curr] = 0;
+    return acc;
+  }, {});
+
   let counterUsersChecked = 0
   let counterCodes = 0
   let counterCodesUpdated = 0
@@ -150,8 +156,9 @@ const autoUpdateUsers = async () => {
           if (ii) {
             await promiseTimeout(Timeouts.CRONJOB_NEXT_USER_CODE);
           }
-
-          const newCode = await getCodeFromMidpass(code.uid);
+          const midpassResult = await getCodeFromMidpass(code.uid)
+          const newCode = new Code(midpassResult?.newCode);
+          counterRoutes[midpassResult?.route]++
           const hasChanges = code.hasChangesWith(newCode);
 
           currentUser.updateUserCodes(newCode);
@@ -213,15 +220,20 @@ const autoUpdateUsers = async () => {
     });
   } finally {
     const cronjobDuration = calculateTimeDifference(startDate)
+    let counterRoutesString = ''
+    for (const key in obj) {
+      counterRoutesString += `  ${key}: <b>${obj[key]}</b>\n`;
+    }
     await logMessage({
       type: LogsTypes.END_CRONJOB,
-      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, cronjobDuration),
-      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, cronjobDuration),
+      message: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, counterRoutesString, cronjobDuration),
+      messageToAdmin: Messages.END_CRONJOB(counterUsersChecked, counterCodes, counterCodesUpdated, counterCodesError, counterRoutesString, cronjobDuration),
       meta: {
         [MetaKeys.COUNTER_USERS_CHECKED]: counterUsersChecked,
         [MetaKeys.COUNTER_CODES]: counterCodes,
         [MetaKeys.COUNTER_CODES_UPDATED]: counterCodesUpdated,
         [MetaKeys.COUNTER_CODES_ERROR]: counterCodesError,
+        [MetaKeys.COUNTER_ROUTES]: counterRoutesString,
         [MetaKeys.CRONJOB_DURATION]: cronjobDuration,
       }
     });

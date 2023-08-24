@@ -1,12 +1,11 @@
 import axios from 'axios'
 import {
   API_KEY,
-  API_ROUTE_MIDPASS,
+  API_ROUTE_MIDPASS_PROXIES,
   API_ROUTE_LOGS,
   API_ROUTE_USERS,
   API_USER_AGENTS,
   ADMIN_CHAT_ID,
-  DEBUG,
   Timeouts,
   Messages,
   LogsTypes,
@@ -65,18 +64,29 @@ META<<<${JSON.stringify(data?.meta || {})}>>>META
   }
 }
 
-export const getCodeFromMidpass = async (uid = '') => {
-  try {
-    const newCode = !DEBUG ? (await axiosInstance.get(`${API_ROUTE_MIDPASS}/${uid}`)).data : Promise.resolve({ uid });
-
-    if (!newCode) {
+const createGetCodeFromMidpass = () => {
+  let i = 0;
+  return async function(uid = '') {
+    try {
+      if (!API_ROUTE_MIDPASS_PROXIES[i]) {
+        i = 0;
+      }
+      const newCode = (await axiosInstance.get(`${API_ROUTE_MIDPASS_PROXIES[i]}/${uid}`)).data;
+      const route = API_ROUTE_MIDPASS_PROXIES[i]
+      i++;
+      if (!newCode) {
+        throw Messages.ERROR_REQUEST_CODE_WITH_USER_CODE(uid);
+      }
+      return {
+        newCode,
+        route
+      }
+    } catch(e) {
       throw Messages.ERROR_REQUEST_CODE_WITH_USER_CODE(uid);
     }
-    return new Code(newCode)
-  } catch(e) {
-    throw Messages.ERROR_REQUEST_CODE_WITH_USER_CODE(uid);
   }
 }
+export const getCodeFromMidpass = createGetCodeFromMidpass()
 
 export const getAllUsers = async (filterString = '') => {
   const pageSize = 100;

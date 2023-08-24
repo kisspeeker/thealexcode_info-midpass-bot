@@ -10,6 +10,10 @@ export const BOT_TOKEN = process.env.TG_BOT_TOKEN;
 export const ADMIN_CHAT_ID = process.env.TG_ADMIN_CHAT_ID;
 export const LOGS_PATH = resolve('./data/logs.json');
 export const API_ROUTE_MIDPASS = 'https://info.midpass.ru/api/request';
+export const API_ROUTE_MIDPASS_PROXIES = [
+  'https://proxy0.kisspeeker.dev/midpass/api/request',
+  'https://proxy1.kisspeeker.dev/midpass/api/request',
+]
 
 export const API_KEY = process.env.API_KEY
 export const API_ROUTE_LOGS = process.env.API_ROOT + '/api/bot-logs'
@@ -46,8 +50,8 @@ export const LogsTypes = {
 export const Timeouts = {
   START: 1000 * 2,
   TEXT: 1000 * 2,
-  CRONJOB_NEXT_USER_CODE: 1000 * 15,
-  CRONJOB_NEXT_USER: 1000 * 30,
+  CRONJOB_NEXT_USER_CODE: 1000 * 10,
+  CRONJOB_NEXT_USER: 1000 * 10,
   GET_USERS: 100,
 }
 
@@ -59,6 +63,7 @@ export const MetaKeys = {
   COUNTER_CODES: 'COUNTER_CODES',
   COUNTER_CODES_UPDATED: 'COUNTER_CODES_UPDATED',
   COUNTER_CODES_ERROR: 'COUNTER_CODES_ERROR',
+  COUNTER_ROUTES: 'COUNTER_ROUTES',
   CRONJOB_DURATION: 'CRONJOB_DURATION',
 }
 
@@ -276,12 +281,14 @@ ${JSON.stringify(obj)}
 `⏰⏰⏰ START_CRONJOB
 Количество пользователей: <b>${counterUserWithCodes}</b>
 `,
-  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0, counterCodesError = 0, duration = '') =>
+  END_CRONJOB: (counterUsersChecked = 0, counterCodes = 0, counterCodesUpdated = 0, counterCodesError = 0, counterRoutes = '', duration = '') =>
 `✅✅✅ END_CRONJOB
 Проверено пользователей: <b>${counterUsersChecked}</b>
 Проверено заявлений: <b>${counterCodes}</b>
 Обновлено заявлений: <b>${counterCodesUpdated}</b>
 Ошибок: <b>${counterCodesError}</b>
 Выполнено за: <b>${duration}</b>
+Использовано прокси:
+${counterRoutes}
 `,
 }
